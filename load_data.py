@@ -27,11 +27,10 @@ binary_heart_data.drop('chd', axis=1, inplace=True)
 # a single unit of variance.
 scaler = StandardScaler()
 scaler.fit(binary_heart_data)
-X = scaler.transform(binary_heart_data)
+X = scaler.transform(binary_heart_data)   # What about y?s
 
 # Non-standardized data
 Xns = binary_heart_data.to_numpy()
 
 # Clean up variables
-del scaler, fam_history, fh, heart_data, unique_hist
-# del historyDict
+del scaler, fam_history, fh, heart_data, unique_hist, historyDict
