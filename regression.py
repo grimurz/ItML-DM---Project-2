@@ -146,10 +146,15 @@ del rmse_train, rmse_test, min_error, min_error_index
 
 #%% 3. 
 '''
-beep boop
+i    Get 2nd, 6th and 8th attribute
+ii   Standardize data
+iii  Use 3rd order polynomial interpolation on data
+iv   Get prediction by running data through model
+v    Unstandardize result from prediction
+vi   profit???
+
+https://scikit-learn.org/stable/auto_examples/linear_model/plot_polynomial_interpolation.html
 '''
-
-
 
 ### Regression, part b ###
 #%% 1.
@@ -163,12 +168,16 @@ beep boop
 
 
 
+
+
+
+
+
+
+
 #%% Copy/pase bin, junk and other stuff
 
 # X = X[np.argsort(X[:, 6])] # line plot gets otherwise messy
-
-
-
 
 # # polyreg, probably not used
 # age = np.array(X[:,6]).reshape(-1,1)
