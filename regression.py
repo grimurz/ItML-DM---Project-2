@@ -221,7 +221,7 @@ for par_index, test_index in CV1.split(X0):
     print('lambda:',lambdas[min_error_rr_index])
 
 
-
+    # Temp visualization
     plt.figure(figsize=(8,8))
     plt.semilogx(lambdas, mean_mse_rr_val)
     plt.semilogx(lambdas[min_error_rr_index], min_error_rr_val, 'o')
