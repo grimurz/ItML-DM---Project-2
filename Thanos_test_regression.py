@@ -93,12 +93,12 @@ log_pred = classifier.predict(X_test)
 from sklearn.metrics import confusion_matrix
 cm = confusion_matrix(y_test, log_pred)
 
-#---------------------------------------------------------
+#%%---------------------------------------------------------
 #VISUALIZATIONS
 
 
 
-'''# Visualising the Linear Regression results
+# Visualising the Linear Regression results
 plt.scatter(X_train, y_train, color = 'red')
 plt.plot(X, lin_reg.predict(X_train), color = 'blue')
 plt.title('Truth or Bluff (Linear Regression)')
@@ -108,7 +108,7 @@ plt.show()
 
 # Visualising the Polynomial Regression results
 plt.scatter(X_train, y_train, color = 'red')
-plt.plot(X_train, lin_reg_2.predict(poly_reg.fit_transform(X_train), color = 'blue')
+plt.plot(X_train, lin_reg_2.predict(poly_reg.fit_transform(X_train), color = 'blue'))
 plt.title('Truth or Bluff Polynomial Regression')
 plt.xlabel('Position level')
 plt.ylabel('Salary')
@@ -159,5 +159,5 @@ plt.title('Logistic Regression (Test set)')
 plt.xlabel('Age')
 plt.ylabel('Estimated Salary')
 plt.legend()
-plt.show()'''
+plt.show()
 
