@@ -15,7 +15,7 @@ from sklearn.pipeline import make_pipeline
 
 # Prepare data
 y = np.array(X[:,3]).reshape(-1,1) # y = adiposity
-# X1 = X[:,[0,1,2, 4,5,6,7,8]] # exclude adiposity
+X0 = X[:,[0,1,2, 4,5,6,7,8]] # exclude adiposity
 # X1 = X[:,[1,2, 4,5,6,7,8]]  # 0: 0.537
 # X1 = X[:,[2,4, 5,6,7,8]]  # 1: 0.5353
 # X1 = X[:,[2, 5,6,7,8]]  # 4/5: 0.5346
@@ -32,14 +32,14 @@ X2 = X[:,[2, 6,8]]  # 7: 0.5345   <---  best ridgereg (3rd order poly)
 
 # All attributes are used. Do we want some improved attribute selection?
 # Standardization should strictly speaking happen within each fold. Not sure
-# if it really matters in our case. SWITCH FROM RMSE TO MSE?
+# if it really matters in our case
 
 # K-fold crossvalidation
 K = 10
 CV = model_selection.KFold(n_splits=K, shuffle=True, random_state=42)
 
-# Init root-mean-square error (RMSE)
-rmse = np.zeros(K)
+# Init mean-square error (MSE)
+mse = np.zeros(K)
 
 k=0
 for train_index, test_index in CV.split(X1):
@@ -56,18 +56,18 @@ for train_index, test_index in CV.split(X1):
     y_pred = lin_reg.predict(X_test)
 
     # Calculate error
-    rmse[k] = np.sqrt(np.mean((y_pred-y_test)**2))
+    mse[k] = np.mean((y_pred-y_test)**2)
 
     k+=1
 
-print('Linear regression RMSE:', np.round(np.mean(rmse),4))
+print('Linear regression MSE:', np.round(np.mean(mse),4))
 
 del k, K, lin_reg, train_index, test_index
-del rmse
+del mse
 
 
 
-#%% 2. 3rd order poly (Two-layer CV?)
+#%% 2. 3rd order poly 
 
 # Values of lambda
 lambdas = np.logspace(-3, 4, 50)
@@ -76,17 +76,14 @@ lambdas = np.logspace(-3, 4, 50)
 K = 10
 CV = model_selection.KFold(n_splits=K, shuffle=True, random_state=42)
 
-# Init root-mean-square error (RMSE)
-rmse_train = np.zeros([K,len(lambdas)])
-rmse_test = np.zeros([K,len(lambdas)])
+# Init mean-square error (MSE)
+mse_train = np.zeros([K,len(lambdas)])
+mse_test = np.zeros([K,len(lambdas)])
 
 k=0
-# for train_index, test_index in CV.split(X2):
 for train_index, test_index in CV.split(X2):
 
     # extract training and test set for current CV fold
-    # X_train, y_train = X2[train_index,:], y2[train_index]
-    # X_test, y_test = X2[test_index,:], y2[test_index]
     X_train, y_train = X2[train_index,:], y[train_index]
     X_test, y_test = X2[test_index,:], y[test_index]
 
@@ -102,14 +99,14 @@ for train_index, test_index in CV.split(X2):
         y_test_pred = ridge_reg.predict(X_test)
 
         # Calculate error
-        rmse_train[k,i] = np.sqrt(np.mean((y_train_pred-y_train)**2))
-        rmse_test[k,i] = np.sqrt(np.mean((y_test_pred-y_test)**2))
+        mse_train[k,i] = np.mean((y_train_pred-y_train)**2)
+        mse_test[k,i] = np.mean((y_test_pred-y_test)**2)
 
     k+=1
 
 
-train_error = np.mean(rmse_train,axis=0)
-test_error = np.mean(rmse_test,axis=0)
+train_error = np.mean(mse_train,axis=0)
+test_error = np.mean(mse_test,axis=0)
 
 min_error = np.min(test_error)
 min_error_index = np.where(test_error == min_error)[0][0]
@@ -120,26 +117,19 @@ plt.semilogx(lambdas, test_error)
 plt.semilogx(lambdas[min_error_index], min_error, 'o')
 plt.text(0.007, 0.58, "Minimum test error: " + str(np.round(min_error,4)) + ' at 1e' + str(np.round(np.log10(lambdas[min_error_index]),2)))
 plt.xlabel('Regularization strength, $\log_{10}(\lambda)$')
-plt.ylabel('RMSE')
+plt.ylabel('MSE')
 plt.title('Regression error')
 plt.legend(['Training error','Test error','Test minimum'],loc='upper right')
-plt.ylim([0.3, 1])
+plt.ylim([0.2, 0.9])
 plt.grid()
 plt.show()  
 
-print('Ridge regression (inner) RMSE:', np.round(np.mean(min_error),4))
+print('Ridge regression MSE:', np.round(np.mean(min_error),4))
 
-
-# # Fit ridge regression model, compute model output and calculate error:
-# ridge_reg = make_pipeline(PolynomialFeatures(3), Ridge(alpha=lambdas[min_error_index]))
-# ridge_reg.fit(X_train, y_train)
-# y_te_pred = ridge_reg.predict(X_te)
-# beep = np.sqrt(np.mean((y_te_pred-y_te)**2))
-# print('Ridge regression (outer) RMSE:', np.round(np.mean(min_error),4))
 
 
 del k, K, i, lam, ridge_reg, train_index, test_index
-del rmse_train, rmse_test, min_error, min_error_index
+del mse_train, mse_test, min_error, min_error_index
 
 
 #%% 3. 
@@ -157,13 +147,14 @@ https://scikit-learn.org/stable/auto_examples/linear_model/plot_polynomial_inter
 
 ### REGRESSION, PART B ###
 
-#%% 1.
+#%% 1. K1/K2 and CV1/CV2 redundant? 
 
-K1 = 10
+K1 = 3 # 10
 K2 = 10
 
-#lambdas = ???
-#hidden_units = ???
+# Init hyperparameters
+hidden_units = np.arange(start = 1, stop = 20, step = 3)
+lambdas = np.logspace(-3, 4, 50)
 
 # Init errors
 ann_error = np.zeros(K1) # articial neural network
@@ -172,20 +163,25 @@ bl_error = np.zeros(K1)  # baseline
 
 
 CV1 = model_selection.KFold(n_splits=K1, shuffle=True, random_state=42)
-CV2 = model_selection.KFold(n_splits=K2, shuffle=True, random_state=42)
+CV2 = model_selection.KFold(n_splits=K2, shuffle=True, random_state=43)
 
 # Outer CV for test data
 k=0
-for par_index, test_index in CV1.split(X):
+for par_index, test_index in CV1.split(X0):
 
     # extract training and test set for current CV fold
-    X_par, y_par = X[par_index,:], y[par_index]
-    X_test, y_test = X[test_index,:], y[test_index]
+    X_par, y_par = X0[par_index,:], y[par_index]
+    X_test, y_test = X0[test_index,:], y[test_index]
+
+
+    # Init mean square validation error
+    mse_ann_val = np.zeros([K2,len(hidden_units)])
+    mse_rr_val = np.zeros([K2,len(lambdas)])
 
     # Inner loop for training and validation
     j=0
     for train_index, val_index in CV2.split(X_par):
-    
+        
         # extract training and test set for current CV fold
         X_train, y_train = X_par[train_index,:], y_par[train_index]
         X_val, y_val = X_par[val_index,:], y_par[val_index]
@@ -195,17 +191,53 @@ for par_index, test_index in CV1.split(X):
         # ANN
             
             
-        # Ridge
 
+        # Ridge
+        for i, lam in enumerate(lambdas):
+    
+            # Fit ridge regression model
+            ridge_reg = make_pipeline(PolynomialFeatures(3), Ridge(alpha=lam))
+            ridge_reg.fit(X_train[:,[2, 5,7]] , y_train)        # <---- [:,[2, 6,8]]  !!!
+            # ridge_reg.fit(X_train , y_train)
+    
+            # Compute model output:
+            y_val_pred = ridge_reg.predict(X_val[:,[2, 5,7]] )  # <---- [:,[2, 6,8]] !!!
+            # y_val_pred = ridge_reg.predict(X_val)
+    
+            # Calculate error
+            mse_rr_val[j,i] = np.mean((y_val_pred-y_val)**2)
 
 
         
         # validate that shiz and find those optimal hypers
         
         j+=1
-    
 
-    ### use test data here ###
+    mean_mse_rr_val = np.mean(mse_rr_val,axis=0)
+    min_error_rr_val = np.min(mean_mse_rr_val)
+    min_error_rr_index = np.where(mean_mse_rr_val == min_error_rr_val)[0][0]
+
+    print('\nmin rr error:',min_error_rr_val)
+    print('lambda:',lambdas[min_error_rr_index])
+
+
+
+    plt.figure(figsize=(8,8))
+    plt.semilogx(lambdas, mean_mse_rr_val)
+    plt.semilogx(lambdas[min_error_rr_index], min_error_rr_val, 'o')
+    plt.xlabel('Regularization strength, $\log_{10}(\lambda)$')
+    plt.ylabel('MSE')
+    plt.title('Regression error')
+    plt.legend(['Val error','Val minimum'],loc='upper right')
+    plt.ylim([0.2, 0.9])
+    plt.grid()
+    plt.show()  
+
+
+
+
+
+    ### test data here ###
 
     # ANN
         
@@ -224,8 +256,9 @@ for par_index, test_index in CV1.split(X):
 
 
 
-del j, k, K1, K2, y_bl_pred
+del i, j, k, K1, K2, y_bl_pred, lam
 del par_index, train_index, val_index, test_index
+# del hidden_units, lambdas
 
 
 #%% 2.
