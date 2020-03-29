@@ -33,4 +33,4 @@ X = scaler.transform(binary_heart_data)   # What about y?s
 Xns = binary_heart_data.to_numpy()
 
 # Clean up variables
-del scaler, fam_history, fh, heart_data, unique_hist, historyDict
+# del scaler, fam_history, fh, heart_data, unique_hist, historyDict
