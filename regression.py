@@ -57,7 +57,7 @@ del k, K, lin_reg, train_index, test_index
 del rmse
 
 
-#%% 2. Two-layer k-fold cross-validation
+#%% 2. Two-layer k-fold cross-validation?
 
 # Values of lambda
 lambdas = np.logspace(-2, 4, 20)
@@ -117,7 +117,7 @@ plt.grid()
 plt.show()  
 
 
-
+print('Ridge regression RMSE (WIP):', np.round(np.mean(min_error),4))
 
 
 del k, K, ridge_reg, train_index, test_index
