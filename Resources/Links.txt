@@ -1,0 +1,31 @@
+
+
+
+DATASET ANALYSIS:
+
+
+https://srisai85.github.io/CHD/heart_attack.html
+
+
+
+
+
+PLAY WITH THE SOUTH AFRICAN DATA VISUALIZED:
+
+
+https://bigml.com/gallery/predict/model/53b2f21ec8db635905000d33
+
+
+
+
+
+
+DATA VIZ OF MULTIPLE FEATURES IN LIN REGRESSION:
+
+
+https://stats.stackexchange.com/questions/73320/how-to-visualize-a-fitted-multiple-regression-model
+
+
+https://stackoverflow.com/questions/36942443/plotting-a-multiple-logistic-regression-for-binary-and-continuous-values-in-r
+
+
