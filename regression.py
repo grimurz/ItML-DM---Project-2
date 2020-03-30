@@ -59,6 +59,19 @@ for train_index, test_index in CV.split(X1):
     mse[k] = np.mean((y_pred-y_test)**2)
 
     k+=1
+    
+#------------------------------------------
+#Thanos' 10K-Fold cross validation
+
+   
+# Applying k-Fold Cross Validation
+
+from sklearn.model_selection import cross_val_score
+accuracies = cross_val_score(estimator = lin_reg, X = X_train, y = y_train, cv = 10)
+accuracies.mean()
+accuracies.std()
+
+#------------------------------------------
 
 print('Linear regression MSE:', np.round(np.mean(mse),4))
 
@@ -75,6 +88,8 @@ lambdas = np.logspace(-3, 4, 50)
 # K-fold crossvalidation
 K = 10
 CV = model_selection.KFold(n_splits=K, shuffle=True, random_state=42)
+
+
 
 # Init mean-square error (MSE)
 mse_train = np.zeros([K,len(lambdas)])

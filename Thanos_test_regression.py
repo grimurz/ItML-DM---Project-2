@@ -70,8 +70,14 @@ lin_reg_2.fit(X_poly, y_train)
 
 # Fitting Logistic Regression to the Training set
 from sklearn.linear_model import LogisticRegression
-classifier = LogisticRegression(random_state = 0)
-classifier.fit(X_train, y_train)
+log_classifier = LogisticRegression(random_state = 0)
+log_classifier.fit(X_train, y_train)
+
+
+# Fitting Kernel SVM to the Training set
+from sklearn.svm import SVC
+SVM_classifier = SVC(kernel = 'rbf', random_state = 0)
+SVM_classifier.fit(X_train, y_train)
 
 
 #-----------------------------------------------------------
@@ -87,17 +93,33 @@ poly_pred= lin_reg_2.predict(poly_reg.fit_transform(X_test))
 
 
 # Predicting the Test set results
-log_pred = classifier.predict(X_test)
+log_pred = log_classifier.predict(X_test)
 
 # Making the Confusion Matrix
 from sklearn.metrics import confusion_matrix
 cm = confusion_matrix(y_test, log_pred)
 
+
+
+
+#-----------------------------------------------------------
+#VALIDATION
+
+
+
+# Applying k-Fold Cross Validation
+from sklearn.model_selection import cross_val_score
+accuracies = cross_val_score(estimator = log_classifier, X = X_train, y = y_train, cv = 10)
+accuracies.mean()
+accuracies.std()
+
+
+
 #%%---------------------------------------------------------
 #VISUALIZATIONS
 
 
-
+'''
 # Visualising the Linear Regression results
 plt.scatter(X_train, y_train, color = 'red')
 plt.plot(X, lin_reg.predict(X_train), color = 'blue')
@@ -160,4 +182,4 @@ plt.xlabel('Age')
 plt.ylabel('Estimated Salary')
 plt.legend()
 plt.show()
-
+'''
