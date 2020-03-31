@@ -26,21 +26,33 @@ historyDict = dict(zip(fam_history,[1,0]))
 fh = np.array([historyDict[cl] for cl in fam_history])
 binary_heart_data = heart_data.copy()
 binary_heart_data.famhist = fh
-y = heart_data[['chd']].to_numpy().squeeze()
+yc = heart_data[['chd']].to_numpy().squeeze()
+yr= heart_data[['age']].to_numpy().squeeze()
 binary_heart_data.drop('row.names', axis=1, inplace=True)
+regression_heart_data = binary_heart_data.copy()
 binary_heart_data.drop('chd', axis=1, inplace=True)
-
+regression_heart_data.drop('age', axis=1, inplace=True)
 # Data standardization: We scale our data so that each feature has
 # a single unit of variance.
-scaler = StandardScaler()
-scaler.fit(binary_heart_data)
-X = scaler.transform(binary_heart_data)   # What about y?s
+scaler_binary = StandardScaler()
+scaler_binary.fit(binary_heart_data)
+Xc = scaler_binary.transform(binary_heart_data)   # What about y?s
 
 # Non-standardized data
 Xns = binary_heart_data.to_numpy()
 
+
+scaler_reg = StandardScaler()
+scaler_reg.fit(binary_heart_data)
+Xr = scaler_reg.transform(regression_heart_data)   # What about y?s
+
+# Non-standardized data
+Xns = binary_heart_data.to_numpy()
+
+
+
 # Clean up variables
-del scaler, fam_history, fh, heart_data, unique_hist, historyDict
+del scaler_binary, scaler_reg, fam_history, fh, heart_data, unique_hist, historyDict
 
 
 #---------------------------------------------
@@ -48,43 +60,49 @@ del scaler, fam_history, fh, heart_data, unique_hist, historyDict
 
 
 
-
 # Splitting the dataset into the Training set and Test set
 from sklearn.model_selection import train_test_split
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.25, random_state = 0)
+Xc_train, Xc_test, yc_train, yc_test = train_test_split(Xc, yc, test_size = 0.25, random_state = 0)
 
+
+from sklearn.model_selection import train_test_split
+Xr_train, Xr_test, yr_train, yr_test = train_test_split(Xr, yr, test_size = 0.25, random_state = 0)
 
 # Fitting Linear Regression to the dataset
 from sklearn.linear_model import LinearRegression
 lin_reg = LinearRegression(n_jobs=-1)
-lin_reg.fit(X_train, y_train)
+lin_reg.fit(Xr_train, yr_train)
 
+# Fitting Decision Tree Regression to the dataset
+from sklearn.tree import DecisionTreeRegressor
+tree_regressor = DecisionTreeRegressor(random_state = 0)
+tree_regressor.fit(Xr_train, yr_train)
 
 
 # Fitting Polynomial Regression to the dataset
 from sklearn.preprocessing import PolynomialFeatures
 poly_reg = PolynomialFeatures(degree = 3)
-X_poly = poly_reg.fit_transform(X_train)
-poly_reg.fit(X_poly, y_train)
+X_poly = poly_reg.fit_transform(Xr_train)
+poly_reg.fit(X_poly, yr_train)
 lin_reg_2 = LinearRegression(n_jobs=-1)
-lin_reg_2.fit(X_poly, y_train)
+lin_reg_2.fit(X_poly, yr_train)
 
 
 # Fitting Logistic Regression to the Training set
 from sklearn.linear_model import LogisticRegression
 log_classifier = LogisticRegression(C=10, n_jobs=-1, random_state = 0)
-log_classifier.fit(X_train, y_train)
+log_classifier.fit(Xc_train, yc_train)
 
 
 # Fitting Kernel SVM to the Training set
 from sklearn.svm import SVC
 SVM_classifier = SVC(C=10, kernel = 'linear',random_state = 0)
-SVM_classifier.fit(X_train, y_train)
+SVM_classifier.fit(Xc_train, yc_train)
 
 # Fitting XGBoost to the Training set
 from xgboost import XGBClassifier
 xgb_classifier = XGBClassifier(learning_rate= 0.01, n_jobs=-1, random_state = 0)
-xgb_classifier.fit(X_train, y_train)
+xgb_classifier.fit(Xc_train, yc_train)
 
 
 
@@ -95,21 +113,21 @@ xgb_classifier.fit(X_train, y_train)
 
 
 # Predicting a new result with Linear Regression
-lin_pred = lin_reg.predict(X_test)
+lin_pred = lin_reg.predict(Xr_test)
 
 # Predicting a new result with Polynomial Regression
-poly_pred= lin_reg_2.predict(poly_reg.fit_transform(X_test))
+poly_pred= lin_reg_2.predict(poly_reg.fit_transform(Xr_test))
 
 
 # Predicting the Test set results
-log_pred = log_classifier.predict(X_test)
+log_pred = log_classifier.predict(Xc_test)
 
 # Predicting the Test set results
-xgb_pred = xgb_classifier.predict(X_test)
+xgb_pred = xgb_classifier.predict(Xc_test)
 
 
 #Predicting the Test set results
-SVM_pred = SVM_classifier.predict(X_test)
+SVM_pred = SVM_classifier.predict(Xc_test)
 
 
 
@@ -117,38 +135,54 @@ SVM_pred = SVM_classifier.predict(X_test)
 
 # Making the Confusion Matrix
 from sklearn.metrics import confusion_matrix
-cm_log = confusion_matrix(y_test, log_pred)
+cm_log = confusion_matrix(yc_test, log_pred)
 
 
 # Making the Confusion Matrix
 from sklearn.metrics import confusion_matrix
-cm_xgb = confusion_matrix(y_test, xgb_pred)
+cm_xgb = confusion_matrix(yc_test, xgb_pred)
 
 # Making the Confusion Matrix
 from sklearn.metrics import confusion_matrix
-cm_SVM = confusion_matrix(y_test, SVM_pred)
+cm_SVM = confusion_matrix(yc_test, SVM_pred)
 
 #-----------------------------------------------------------
 #VALIDATION
 
 
 
+
+
 # Applying k-Fold Cross Validation
 from sklearn.model_selection import cross_val_score
-log_accuracies = cross_val_score(estimator = log_classifier, X = X_train, y = y_train, cv = 10, n_jobs = -1)
+poly_reg_accuracies = cross_val_score(estimator = lin_reg_2, X = Xr_train, y = yr_train, cv = 10, n_jobs = -1)
+poly_reg_accuracies.mean()
+poly_reg_accuracies.std()
+
+
+# Applying k-Fold Cross Validation
+from sklearn.model_selection import cross_val_score
+tree_accuracies = cross_val_score(estimator = tree_regressor, X = Xr_train, y = yr_train, cv = 10, n_jobs = -1)
+tree_accuracies.mean()
+tree_accuracies.std()
+
+
+# Applying k-Fold Cross Validation
+from sklearn.model_selection import cross_val_score
+log_accuracies = cross_val_score(estimator = log_classifier, X = Xc_train, y = yc_train, cv = 10, n_jobs = -1)
 log_accuracies.mean()
 log_accuracies.std()
 
 # Applying k-Fold Cross Validation
 from sklearn.model_selection import cross_val_score
-SVM_accuracies = cross_val_score(estimator = SVM_classifier, X = X_train, y = y_train, cv = 10, n_jobs = -1)
+SVM_accuracies = cross_val_score(estimator = SVM_classifier, X = Xc_train, y = yc_train, cv = 10, n_jobs = -1)
 SVM_accuracies.mean()
 SVM_accuracies.std()
 
 
 # Applying k-Fold Cross Validation
 from sklearn.model_selection import cross_val_score
-xgb_accuracies = cross_val_score(estimator = xgb_classifier, X = X_train, y = y_train, cv = 10, n_jobs = -1)
+xgb_accuracies = cross_val_score(estimator = xgb_classifier, X = Xc_train, y = yc_train, cv = 10, n_jobs = -1)
 xgb_accuracies.mean()
 xgb_accuracies.std()
 
@@ -169,7 +203,7 @@ grid_search = GridSearchCV(estimator = log_classifier,
                            scoring = 'accuracy',
                            cv = 10,
                            n_jobs = -1)
-grid_search_log = grid_search.fit(X_train, y_train)
+grid_search_log = grid_search.fit(Xc_train, yc_train)
 best_accuracy_log = grid_search.best_score_
 best_parameters_log = grid_search.best_params_
 
@@ -183,7 +217,7 @@ grid_search = GridSearchCV(estimator = SVM_classifier,
                            scoring = 'accuracy',
                            cv = 10,
                            n_jobs = -1)
-grid_search_SVM = grid_search.fit(X_train, y_train)
+grid_search_SVM = grid_search.fit(Xc_train, yc_train)
 best_accuracy_SVM = grid_search.best_score_
 best_parameters_SVM = grid_search.best_params_
 
