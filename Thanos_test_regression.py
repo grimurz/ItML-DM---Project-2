@@ -56,28 +56,37 @@ X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.25, rand
 
 # Fitting Linear Regression to the dataset
 from sklearn.linear_model import LinearRegression
-lin_reg = LinearRegression()
+lin_reg = LinearRegression(n_jobs=-1)
 lin_reg.fit(X_train, y_train)
+
+
 
 # Fitting Polynomial Regression to the dataset
 from sklearn.preprocessing import PolynomialFeatures
 poly_reg = PolynomialFeatures(degree = 3)
 X_poly = poly_reg.fit_transform(X_train)
 poly_reg.fit(X_poly, y_train)
-lin_reg_2 = LinearRegression()
+lin_reg_2 = LinearRegression(n_jobs=-1)
 lin_reg_2.fit(X_poly, y_train)
 
 
 # Fitting Logistic Regression to the Training set
 from sklearn.linear_model import LogisticRegression
-log_classifier = LogisticRegression(random_state = 0)
+log_classifier = LogisticRegression(C=10, n_jobs=-1, random_state = 0)
 log_classifier.fit(X_train, y_train)
 
 
 # Fitting Kernel SVM to the Training set
 from sklearn.svm import SVC
-SVM_classifier = SVC(kernel = 'rbf', random_state = 0)
+SVM_classifier = SVC(C=10, kernel = 'linear',random_state = 0)
 SVM_classifier.fit(X_train, y_train)
+
+# Fitting XGBoost to the Training set
+from xgboost import XGBClassifier
+xgb_classifier = XGBClassifier(learning_rate= 0.01, n_jobs=-1, random_state = 0)
+xgb_classifier.fit(X_train, y_train)
+
+
 
 
 #-----------------------------------------------------------
@@ -95,12 +104,29 @@ poly_pred= lin_reg_2.predict(poly_reg.fit_transform(X_test))
 # Predicting the Test set results
 log_pred = log_classifier.predict(X_test)
 
+# Predicting the Test set results
+xgb_pred = xgb_classifier.predict(X_test)
+
+
+#Predicting the Test set results
+SVM_pred = SVM_classifier.predict(X_test)
+
+
+
+
+
 # Making the Confusion Matrix
 from sklearn.metrics import confusion_matrix
-cm = confusion_matrix(y_test, log_pred)
+cm_log = confusion_matrix(y_test, log_pred)
 
 
+# Making the Confusion Matrix
+from sklearn.metrics import confusion_matrix
+cm_xgb = confusion_matrix(y_test, xgb_pred)
 
+# Making the Confusion Matrix
+from sklearn.metrics import confusion_matrix
+cm_SVM = confusion_matrix(y_test, SVM_pred)
 
 #-----------------------------------------------------------
 #VALIDATION
@@ -109,10 +135,57 @@ cm = confusion_matrix(y_test, log_pred)
 
 # Applying k-Fold Cross Validation
 from sklearn.model_selection import cross_val_score
-accuracies = cross_val_score(estimator = log_classifier, X = X_train, y = y_train, cv = 10)
-accuracies.mean()
-accuracies.std()
+log_accuracies = cross_val_score(estimator = log_classifier, X = X_train, y = y_train, cv = 10, n_jobs = -1)
+log_accuracies.mean()
+log_accuracies.std()
 
+# Applying k-Fold Cross Validation
+from sklearn.model_selection import cross_val_score
+SVM_accuracies = cross_val_score(estimator = SVM_classifier, X = X_train, y = y_train, cv = 10, n_jobs = -1)
+SVM_accuracies.mean()
+SVM_accuracies.std()
+
+
+# Applying k-Fold Cross Validation
+from sklearn.model_selection import cross_val_score
+xgb_accuracies = cross_val_score(estimator = xgb_classifier, X = X_train, y = y_train, cv = 10, n_jobs = -1)
+xgb_accuracies.mean()
+xgb_accuracies.std()
+
+
+
+#-----------------------------------------------------------
+#MODEL SELECTION
+
+
+
+
+
+# Applying Grid Search to find the best model and the best parameters
+from sklearn.model_selection import GridSearchCV
+parameters = [{'C': [2,3,4,5]}]
+grid_search = GridSearchCV(estimator = log_classifier,
+                           param_grid = parameters,
+                           scoring = 'accuracy',
+                           cv = 10,
+                           n_jobs = -1)
+grid_search_log = grid_search.fit(X_train, y_train)
+best_accuracy_log = grid_search.best_score_
+best_parameters_log = grid_search.best_params_
+
+
+
+from sklearn.model_selection import GridSearchCV
+parameters = [{'C': [1,2,3], 'kernel': ['linear']},
+              {'C': [6,7,8,9,10,11,12,13,14,15,16,17,18,19], 'kernel': ['rbf'], 'gamma': [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]}]
+grid_search = GridSearchCV(estimator = SVM_classifier,
+                           param_grid = parameters,
+                           scoring = 'accuracy',
+                           cv = 10,
+                           n_jobs = -1)
+grid_search_SVM = grid_search.fit(X_train, y_train)
+best_accuracy_SVM = grid_search.best_score_
+best_parameters_SVM = grid_search.best_params_
 
 
 #%%---------------------------------------------------------
@@ -183,3 +256,9 @@ plt.ylabel('Estimated Salary')
 plt.legend()
 plt.show()
 '''
+
+#-----------------------------------------------------------
+#IDLE CODE
+
+
+
