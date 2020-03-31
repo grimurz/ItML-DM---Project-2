@@ -68,6 +68,10 @@ Xc_train, Xc_test, yc_train, yc_test = train_test_split(Xc, yc, test_size = 0.25
 from sklearn.model_selection import train_test_split
 Xr_train, Xr_test, yr_train, yr_test = train_test_split(Xr, yr, test_size = 0.25, random_state = 0)
 
+
+
+
+
 # Fitting Linear Regression to the dataset
 from sklearn.linear_model import LinearRegression
 lin_reg = LinearRegression(n_jobs=-1)
@@ -152,39 +156,39 @@ cm_SVM = confusion_matrix(yc_test, SVM_pred)
 
 
 
+# Applying k-Fold Cross Validation
+from sklearn.model_selection import cross_val_score
+lin_reg_accuracies = cross_val_score(estimator = lin_reg, X = Xr_train, y = yr_train, cv = 10, n_jobs = -1)
+
+
 
 # Applying k-Fold Cross Validation
 from sklearn.model_selection import cross_val_score
 poly_reg_accuracies = cross_val_score(estimator = lin_reg_2, X = Xr_train, y = yr_train, cv = 10, n_jobs = -1)
-poly_reg_accuracies.mean()
-poly_reg_accuracies.std()
+
 
 
 # Applying k-Fold Cross Validation
 from sklearn.model_selection import cross_val_score
 tree_accuracies = cross_val_score(estimator = tree_regressor, X = Xr_train, y = yr_train, cv = 10, n_jobs = -1)
-tree_accuracies.mean()
-tree_accuracies.std()
+
 
 
 # Applying k-Fold Cross Validation
 from sklearn.model_selection import cross_val_score
 log_accuracies = cross_val_score(estimator = log_classifier, X = Xc_train, y = yc_train, cv = 10, n_jobs = -1)
-log_accuracies.mean()
-log_accuracies.std()
+
 
 # Applying k-Fold Cross Validation
 from sklearn.model_selection import cross_val_score
 SVM_accuracies = cross_val_score(estimator = SVM_classifier, X = Xc_train, y = yc_train, cv = 10, n_jobs = -1)
-SVM_accuracies.mean()
-SVM_accuracies.std()
+
 
 
 # Applying k-Fold Cross Validation
 from sklearn.model_selection import cross_val_score
 xgb_accuracies = cross_val_score(estimator = xgb_classifier, X = Xc_train, y = yc_train, cv = 10, n_jobs = -1)
-xgb_accuracies.mean()
-xgb_accuracies.std()
+
 
 
 
@@ -220,6 +224,23 @@ grid_search = GridSearchCV(estimator = SVM_classifier,
 grid_search_SVM = grid_search.fit(Xc_train, yc_train)
 best_accuracy_SVM = grid_search.best_score_
 best_parameters_SVM = grid_search.best_params_
+
+
+
+
+
+model_names = ['Linear Regression', 'Polynomial Regression', 'Decision Trees Regression', 'Logistic Regression', 'SVM', 'XGBoost']
+
+accuracies_means = [lin_reg_accuracies.mean(), poly_reg_accuracies.mean(), tree_accuracies.mean(), log_accuracies.mean(), SVM_accuracies.mean(), xgb_accuracies.mean()]
+
+accuracies_stds = [lin_reg_accuracies.std(), poly_reg_accuracies.std(), tree_accuracies.std(), log_accuracies.std(), SVM_accuracies.std(), xgb_accuracies.std()]
+print()
+print("The mean and variance of accuracies for the following models are: ")
+print()
+for md in range(0,len(model_names)):
+    print( round(accuracies_means[md],2),"\t", round(accuracies_stds[md],3),"\t", model_names[md],"\n")
+
+
 
 
 #%%---------------------------------------------------------
