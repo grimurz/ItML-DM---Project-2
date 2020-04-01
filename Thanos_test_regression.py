@@ -229,17 +229,31 @@ best_parameters_SVM = grid_search.best_params_
 
 
 
-model_names = ['Linear Regression', 'Polynomial Regression', 'Decision Trees Regression', 'Logistic Regression', 'SVM', 'XGBoost']
+model_names = ['Linear Regression', 'Polynomial Regression', 'Decision Trees Regression', 'Logistic Reg', 'SVM', 'XGBoost']
 
 accuracies_means = [lin_reg_accuracies.mean(), poly_reg_accuracies.mean(), tree_accuracies.mean(), log_accuracies.mean(), SVM_accuracies.mean(), xgb_accuracies.mean()]
 
 accuracies_stds = [lin_reg_accuracies.std(), poly_reg_accuracies.std(), tree_accuracies.std(), log_accuracies.std(), SVM_accuracies.std(), xgb_accuracies.std()]
 print()
+print()
 print("The mean and variance of accuracies for the following models are: ")
 print()
+print('------------Regression-----------')
+print()
+i=0
 for md in range(0,len(model_names)):
+    while 'Regression' in model_names[md]:
+        break
+    else:
+        print('----------Classification------------')
+        print()
+        break
     print( round(accuracies_means[md],2),"\t", round(accuracies_stds[md],3),"\t", model_names[md],"\n")
-
+    i+=1
+for m in range(i,len(model_names)):
+    print( round(accuracies_means[m],2),"\t", round(accuracies_stds[m],3),"\t", model_names[m],"\n")
+            
+ 
 
 
 
