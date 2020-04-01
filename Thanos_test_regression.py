@@ -43,7 +43,7 @@ Xns = binary_heart_data.to_numpy()
 
 
 scaler_reg = StandardScaler()
-scaler_reg.fit(binary_heart_data)
+scaler_reg.fit(regression_heart_data)
 Xr = scaler_reg.transform(regression_heart_data)   # What about y?s
 
 # Non-standardized data
@@ -68,9 +68,13 @@ Xc_train, Xc_test, yc_train, yc_test = train_test_split(Xc, yc, test_size = 0.25
 from sklearn.model_selection import train_test_split
 Xr_train, Xr_test, yr_train, yr_test = train_test_split(Xr, yr, test_size = 0.25, random_state = 0)
 
+# Applying LDA
+from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
+lda = LDA(n_components = 2)
+Xc_train = lda.fit_transform(Xc_train, yc_train)
+Xc_test = lda.transform(Xc_test)
 
-
-
+#----------------------Regression Models-------------------------------------
 
 # Fitting Linear Regression to the dataset
 from sklearn.linear_model import LinearRegression
@@ -91,21 +95,22 @@ poly_reg.fit(X_poly, yr_train)
 lin_reg_2 = LinearRegression(n_jobs=-1)
 lin_reg_2.fit(X_poly, yr_train)
 
+#----------------------Classfication Models-----------------------------------
 
 # Fitting Logistic Regression to the Training set
 from sklearn.linear_model import LogisticRegression
-log_classifier = LogisticRegression(C=10, n_jobs=-1, random_state = 0)
+log_classifier = LogisticRegression(C=1, n_jobs=-1, random_state = 0)
 log_classifier.fit(Xc_train, yc_train)
 
 
-# Fitting Kernel SVM to the Training set
+# Fitting  SVM to the Training set
 from sklearn.svm import SVC
-SVM_classifier = SVC(C=10, kernel = 'linear',random_state = 0)
+SVM_classifier = SVC(C=7, kernel = 'rbf',gamma=0.1, random_state = 0)
 SVM_classifier.fit(Xc_train, yc_train)
 
 # Fitting XGBoost to the Training set
 from xgboost import XGBClassifier
-xgb_classifier = XGBClassifier(learning_rate= 0.01, n_jobs=-1, random_state = 0)
+xgb_classifier = XGBClassifier(learning_rate= 0.001, n_jobs=-1, random_state = 0)
 xgb_classifier.fit(Xc_train, yc_train)
 
 
@@ -201,7 +206,7 @@ xgb_accuracies = cross_val_score(estimator = xgb_classifier, X = Xc_train, y = y
 
 # Applying Grid Search to find the best model and the best parameters
 from sklearn.model_selection import GridSearchCV
-parameters = [{'C': [2,3,4,5]}]
+parameters = [{'C': [1,2,3,4,5]}]
 grid_search = GridSearchCV(estimator = log_classifier,
                            param_grid = parameters,
                            scoring = 'accuracy',
@@ -248,13 +253,28 @@ for md in range(0,len(model_names)):
         print('----------Classification------------')
         print()
         break
-    print( round(accuracies_means[md],2),"\t", round(accuracies_stds[md],3),"\t", model_names[md],"\n")
+    print( round(accuracies_means[md],3),"\t", round(accuracies_stds[md],3),"\t", model_names[md],"\n")
     i+=1
 for m in range(i,len(model_names)):
-    print( round(accuracies_means[m],2),"\t", round(accuracies_stds[m],3),"\t", model_names[m],"\n")
+    print( round(accuracies_means[m],3),"\t", round(accuracies_stds[m],3),"\t", model_names[m],"\n")
             
  
+#------------------------------------------------------------------------------------
+#REGRESSIION METRICS
 
+
+
+print()
+print("Regression error metrics:")
+print()
+#MAE is the easiest to understand, because it's the average error.
+#MSE is more popular than MAE, because MSE "punishes" larger errors, which tends to be useful in the real world.
+#RMSE is even more popular than MSE, because RMSE is interpretable in the "y" units.
+#All of these are loss functions, because we want to minimize them.
+from sklearn import metrics
+print('MAE:', metrics.mean_absolute_error(yr_test, lin_pred))
+print('MSE:', metrics.mean_squared_error(yr_test, lin_pred))
+print('RMSE:', np.sqrt(metrics.mean_squared_error(yr_test, lin_pred)))
 
 
 #%%---------------------------------------------------------
