@@ -65,8 +65,10 @@ from sklearn.model_selection import train_test_split
 Xc_train, Xc_test, yc_train, yc_test = train_test_split(Xc, yc, test_size = 0.25, random_state = 0)
 
 
-from sklearn.model_selection import train_test_split
+
 Xr_train, Xr_test, yr_train, yr_test = train_test_split(Xr, yr, test_size = 0.25, random_state = 0)
+
+
 
 # Applying LDA
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
@@ -74,17 +76,20 @@ lda = LDA(n_components = 2)
 Xc_train = lda.fit_transform(Xc_train, yc_train)
 Xc_test = lda.transform(Xc_test)
 
+
+
 #----------------------Regression Models-------------------------------------
+
 
 # Fitting Linear Regression to the dataset
 from sklearn.linear_model import LinearRegression
-lin_reg = LinearRegression(n_jobs=-1)
+lin_reg = LinearRegression(fit_intercept=True, n_jobs=-1)
 lin_reg.fit(Xr_train, yr_train)
 
-# Fitting Decision Tree Regression to the dataset
-from sklearn.tree import DecisionTreeRegressor
-tree_regressor = DecisionTreeRegressor(random_state = 0)
-tree_regressor.fit(Xr_train, yr_train)
+# Fitting Random Forest Regression to the dataset
+from sklearn.ensemble import RandomForestRegressor
+rand_forest = RandomForestRegressor(n_estimators = 290, max_depth=12, min_samples_split= 15,min_samples_leaf=2, max_features="auto",bootstrap=True, random_state = 0, n_jobs= -1)
+rand_forest.fit(Xr_train, yr_train)
 
 
 # Fitting Polynomial Regression to the dataset
@@ -95,7 +100,10 @@ poly_reg.fit(X_poly, yr_train)
 lin_reg_2 = LinearRegression(n_jobs=-1)
 lin_reg_2.fit(X_poly, yr_train)
 
+
+
 #----------------------Classfication Models-----------------------------------
+
 
 # Fitting Logistic Regression to the Training set
 from sklearn.linear_model import LogisticRegression
@@ -124,12 +132,18 @@ xgb_classifier.fit(Xc_train, yc_train)
 # Predicting a new result with Linear Regression
 lin_pred = lin_reg.predict(Xr_test)
 
+
 # Predicting a new result with Polynomial Regression
 poly_pred= lin_reg_2.predict(poly_reg.fit_transform(Xr_test))
 
 
+# Predicting a new result with Random Forests
+rf_pred = rand_forest.predict(Xr_test)
+
+
 # Predicting the Test set results
 log_pred = log_classifier.predict(Xc_test)
+
 
 # Predicting the Test set results
 xgb_pred = xgb_classifier.predict(Xc_test)
@@ -148,12 +162,13 @@ cm_log = confusion_matrix(yc_test, log_pred)
 
 
 # Making the Confusion Matrix
-from sklearn.metrics import confusion_matrix
+
 cm_xgb = confusion_matrix(yc_test, xgb_pred)
 
 # Making the Confusion Matrix
-from sklearn.metrics import confusion_matrix
+
 cm_SVM = confusion_matrix(yc_test, SVM_pred)
+
 
 #-----------------------------------------------------------
 #VALIDATION
@@ -168,30 +183,30 @@ lin_reg_accuracies = cross_val_score(estimator = lin_reg, X = Xr_train, y = yr_t
 
 
 # Applying k-Fold Cross Validation
-from sklearn.model_selection import cross_val_score
+
 poly_reg_accuracies = cross_val_score(estimator = lin_reg_2, X = Xr_train, y = yr_train, cv = 10, n_jobs = -1)
 
 
 
 # Applying k-Fold Cross Validation
-from sklearn.model_selection import cross_val_score
-tree_accuracies = cross_val_score(estimator = tree_regressor, X = Xr_train, y = yr_train, cv = 10, n_jobs = -1)
+
+rf_accuracies = cross_val_score(estimator = rand_forest, X = Xr_train, y = yr_train, cv = 10, n_jobs = -1)
 
 
 
 # Applying k-Fold Cross Validation
-from sklearn.model_selection import cross_val_score
+
 log_accuracies = cross_val_score(estimator = log_classifier, X = Xc_train, y = yc_train, cv = 10, n_jobs = -1)
 
 
 # Applying k-Fold Cross Validation
-from sklearn.model_selection import cross_val_score
+
 SVM_accuracies = cross_val_score(estimator = SVM_classifier, X = Xc_train, y = yc_train, cv = 10, n_jobs = -1)
 
 
 
 # Applying k-Fold Cross Validation
-from sklearn.model_selection import cross_val_score
+
 xgb_accuracies = cross_val_score(estimator = xgb_classifier, X = Xc_train, y = yc_train, cv = 10, n_jobs = -1)
 
 
@@ -202,9 +217,9 @@ xgb_accuracies = cross_val_score(estimator = xgb_classifier, X = Xc_train, y = y
 
 
 
+'''
 
-
-# Applying Grid Search to find the best model and the best parameters
+# Applying Grid Search to find the best model and the best parameters for classification Log Regression
 from sklearn.model_selection import GridSearchCV
 parameters = [{'C': [1,2,3,4,5]}]
 grid_search = GridSearchCV(estimator = log_classifier,
@@ -216,9 +231,22 @@ grid_search_log = grid_search.fit(Xc_train, yc_train)
 best_accuracy_log = grid_search.best_score_
 best_parameters_log = grid_search.best_params_
 
+# Applying Grid Search to find the best model and the best parameters
 
+#Grid search for regression Random Forests 
+parameters = { 'max_depth': [12,13],
+               'n_estimators': [285,290,295]}
+grid_search = GridSearchCV(estimator = rand_forest,
+                           param_grid = parameters,
+                           scoring = 'neg_root_mean_squared_error',
+                           cv = 10,
+                           n_jobs = -1)
+grid_search_log = grid_search.fit(Xr_train, yr_train)
+best_accuracy_log = grid_search.best_score_
+best_parameters_log = grid_search.best_params_
 
-from sklearn.model_selection import GridSearchCV
+#Grid search for classification SVM
+
 parameters = [{'C': [1,2,3], 'kernel': ['linear']},
               {'C': [6,7,8,9,10,11,12,13,14,15,16,17,18,19], 'kernel': ['rbf'], 'gamma': [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]}]
 grid_search = GridSearchCV(estimator = SVM_classifier,
@@ -231,14 +259,14 @@ best_accuracy_SVM = grid_search.best_score_
 best_parameters_SVM = grid_search.best_params_
 
 
+'''
 
 
+model_names = ['Linear Regression', 'Polynomial Regression', 'Random Forests Regression', 'Logistic Reg', 'SVM', 'XGBoost']
 
-model_names = ['Linear Regression', 'Polynomial Regression', 'Decision Trees Regression', 'Logistic Reg', 'SVM', 'XGBoost']
+accuracies_means = [lin_reg_accuracies.mean(), poly_reg_accuracies.mean(), rf_accuracies.mean(), log_accuracies.mean(), SVM_accuracies.mean(), xgb_accuracies.mean()]
 
-accuracies_means = [lin_reg_accuracies.mean(), poly_reg_accuracies.mean(), tree_accuracies.mean(), log_accuracies.mean(), SVM_accuracies.mean(), xgb_accuracies.mean()]
-
-accuracies_stds = [lin_reg_accuracies.std(), poly_reg_accuracies.std(), tree_accuracies.std(), log_accuracies.std(), SVM_accuracies.std(), xgb_accuracies.std()]
+accuracies_stds = [lin_reg_accuracies.std(), poly_reg_accuracies.std(), rf_accuracies.std(), log_accuracies.std(), SVM_accuracies.std(), xgb_accuracies.std()]
 print()
 print()
 print("The mean and variance of accuracies for the following models are: ")

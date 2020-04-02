@@ -8,7 +8,7 @@ Created on Wed Apr  1 15:03:00 2020
 import pandas as pd
 import numpy as np
 from sklearn.preprocessing import StandardScaler
-import matplotlib.pyplot as plt
+from matplotlib.pylab import figure, plot, xlabel, ylabel, legend, show
 from sklearn import metrics
 
 
@@ -79,10 +79,141 @@ from sklearn.model_selection import train_test_split
 Xr_train, Xr_test, yr_train, yr_test = train_test_split(Xr, yr, test_size = 0.25, random_state = 0)
 
 
+# Fitting Random Forest Regression to the dataset
+from sklearn.ensemble import RandomForestRegressor
+rand_forest = RandomForestRegressor(n_estimators = 290, max_depth=12, min_samples_split= 15,min_samples_leaf=2, max_features="auto",bootstrap=True, random_state = 0, n_jobs= -1)
+rand_forest.fit(Xr_train, yr_train)
+
+
+
+
+# Fitting Linear Regression to the dataset
+from sklearn.linear_model import LinearRegression
+lin_reg = LinearRegression(n_jobs=-1)
+lin_reg.fit(Xr_train, yr_train)
+
+
+# Predicting a new result with Linear Regression
+lin_pred_train = lin_reg.predict(Xr_train)
+lin_pred_test = lin_reg.predict(Xr_test)
+
+# Predicting a new result with Random Forests
+rf_pred = rand_forest.predict(Xr_test)
+
+
+
+
+# Applying k-Fold Cross Validation
+from sklearn.model_selection import cross_val_score
+lin_reg_accuracies = cross_val_score(estimator = lin_reg, X = Xr_train, y = yr_train, cv = 10, n_jobs = -1)
+
+# Applying k-Fold Cross Validation
+rf_accuracies = cross_val_score(estimator = rand_forest, X = Xr_train, y = yr_train, cv = 10, n_jobs = -1)
+
 
 
 
 '''
+# Applying Grid Search to find the best model and the best parameters
+from sklearn.model_selection import GridSearchCV
+parameters = { 'max_depth': [12,13],
+               'n_estimators': [285,290,295]}
+grid_search = GridSearchCV(estimator = rand_forest,
+                           param_grid = parameters,
+                           scoring = 'neg_root_mean_squared_error',
+                           cv = 10,
+                           n_jobs = -1)
+grid_search_log = grid_search.fit(Xr_train, yr_train)
+best_accuracy_log = grid_search.best_score_
+best_parameters_log = grid_search.best_params_
+'''
+
+
+
+#------------------------------------------------------------------------------------
+#METRICS
+
+
+
+#MAE is the easiest to understand, because it's the average error.
+#MSE is more popular than MAE, because MSE "punishes" larger errors, which tends to be useful in the real world.
+#RMSE is even more popular than MSE, because RMSE is interpretable in the "y" units.
+#All of these are loss functions, because we want to minimize them.
+
+print()
+print()
+print('MAE:', metrics.mean_absolute_error(yr_test, lin_pred_test))
+print('MSE:', metrics.mean_squared_error(yr_test, lin_pred_test))
+print('RMSE:', np.sqrt(metrics.mean_squared_error(yr_test, lin_pred_test)))
+
+print('MAE:', metrics.mean_absolute_error(yr_test, rf_pred))
+print('MSE:', metrics.mean_squared_error(yr_test, rf_pred))
+print('RMSE:', np.sqrt(metrics.mean_squared_error(yr_test, rf_pred)))
+
+r2 = lin_reg.score(Xr_train,yr_train)
+# Number of observations is the shape along axis 0
+n = Xr_train.shape[0]
+# Number of features (predictors, p) is the shape along axis 1
+p = Xr_train.shape[1]
+
+# We find the Adjusted R-squared using the formula
+adjusted_r2 = 1-(1-r2)*(n-1)/(n-p-1)
+adjusted_r2
+
+
+
+#------------------------------------------------------------------------------------
+#idle code
+'''
+#Calc of decision trees error
+tc = np.arange(2, 21, 1)
+# Initialize variables
+Error_train = np.empty((len(tc),1))
+Error_test = np.empty((len(tc),1))
+
+for i, t in enumerate(tc):
+    # Fit decision tree classifier, Gini split criterion, different pruning levels
+    rand_forest = RandomForestRegressor(n_estimators = 10, random_state = 0)
+    rand_forest.fit(Xr_train, yr_train)
+
+    # Evaluate classifier's misclassification rate over train/test data
+    y_est_test = np.asarray(rand_forest.predict(Xr_test),dtype=int)
+    y_est_train = np.asarray(rand_forest.predict(Xr_train), dtype=int)
+    misclass_rate_test = sum(y_est_test != yr_test) / float(len(y_est_test))
+    misclass_rate_train = sum(y_est_train != yr_train) / float(len(y_est_train))
+    Error_test[i], Error_train[i] = misclass_rate_test, misclass_rate_train
+
+
+f = figure()
+plot(tc, Error_train*100)
+plot(tc, Error_test*100)
+xlabel('Model complexity (max tree depth)')
+ylabel('Error (%)')
+legend(['Error_train','Error_test'])
+    
+show()    
+'''
+#Alternative way to cals RMSE
+'''
+from sklearn.metrics import mean_squared_error
+from math import sqrt
+
+rms_lin = sqrt(mean_squared_error(yr_test, lin_pred))
+
+
+rms_rf = sqrt(mean_squared_error(yr_test, rf_pred))
+
+---------------------
+
+# Predicting a new result with Linear Regression
+lin_pred = lin_reg.predict(Xr_test[:,(1,3,7)])
+
+# Applying k-Fold Cross Validation
+from sklearn.model_selection import cross_val_score
+lin_reg_accuracies = cross_val_score(estimator = lin_reg, X = X_Modeled, y = yr_train, cv = 10, n_jobs = -1)
+
+
+
 # Building the optimal model using Backward Elimination
 import statsmodels.api as sm
 def backwardElimination(Xr_train, SL):
@@ -114,54 +245,3 @@ SL = 0.05
 X_opt = Xr_train[:, [0, 1, 2, 3, 4, 5,6,7,8]]
 X_Modeled = backwardElimination(X_opt, SL)
 '''
-
-
-
-# Fitting Linear Regression to the dataset
-from sklearn.linear_model import LinearRegression
-lin_reg = LinearRegression(n_jobs=-1)
-lin_reg.fit(Xr_train, yr_train)
-
-
-# Predicting a new result with Linear Regression
-lin_pred = lin_reg.predict(Xr_test)
-
-
-'''
-# Predicting a new result with Linear Regression
-lin_pred = lin_reg.predict(Xr_test[:,(1,3,7)])
-
-# Applying k-Fold Cross Validation
-from sklearn.model_selection import cross_val_score
-lin_reg_accuracies = cross_val_score(estimator = lin_reg, X = X_Modeled, y = yr_train, cv = 10, n_jobs = -1)
-'''
-
-# Applying k-Fold Cross Validation
-from sklearn.model_selection import cross_val_score
-lin_reg_accuracies = cross_val_score(estimator = lin_reg, X = Xr_train, y = yr_train, cv = 10, n_jobs = -1)
-
-
-#------------------------------------------------------------------------------------
-#METRICS
-
-
-#MAE is the easiest to understand, because it's the average error.
-#MSE is more popular than MAE, because MSE "punishes" larger errors, which tends to be useful in the real world.
-#RMSE is even more popular than MSE, because RMSE is interpretable in the "y" units.
-#All of these are loss functions, because we want to minimize them.
-
-print()
-print()
-print('MAE:', metrics.mean_absolute_error(yr_test, lin_pred))
-print('MSE:', metrics.mean_squared_error(yr_test, lin_pred))
-print('RMSE:', np.sqrt(metrics.mean_squared_error(yr_test, lin_pred)))
-
-r2 = lin_reg.score(Xr_train,yr_train)
-# Number of observations is the shape along axis 0
-n = Xr_train.shape[0]
-# Number of features (predictors, p) is the shape along axis 1
-p = Xr_train.shape[1]
-
-# We find the Adjusted R-squared using the formula
-adjusted_r2 = 1-(1-r2)*(n-1)/(n-p-1)
-adjusted_r2
