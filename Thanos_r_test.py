@@ -156,3 +156,12 @@ print('MAE:', metrics.mean_absolute_error(yr_test, lin_pred))
 print('MSE:', metrics.mean_squared_error(yr_test, lin_pred))
 print('RMSE:', np.sqrt(metrics.mean_squared_error(yr_test, lin_pred)))
 
+r2 = lin_reg.score(Xr_train,yr_train)
+# Number of observations is the shape along axis 0
+n = Xr_train.shape[0]
+# Number of features (predictors, p) is the shape along axis 1
+p = Xr_train.shape[1]
+
+# We find the Adjusted R-squared using the formula
+adjusted_r2 = 1-(1-r2)*(n-1)/(n-p-1)
+adjusted_r2

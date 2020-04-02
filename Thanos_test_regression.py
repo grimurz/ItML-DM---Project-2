@@ -277,6 +277,17 @@ print('MSE:', metrics.mean_squared_error(yr_test, lin_pred))
 print('RMSE:', np.sqrt(metrics.mean_squared_error(yr_test, lin_pred)))
 
 
+#------------------------------------------------------------------------------------
+#CLASSIFICATION METRICS
+
+
+'''
+from sklearn.metrics import classification_report
+print(classification_report(yr_test,SVM_pred))
+
+'''
+
+
 #%%---------------------------------------------------------
 #VISUALIZATIONS
 
