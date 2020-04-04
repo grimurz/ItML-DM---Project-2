@@ -8,8 +8,10 @@ Created on Wed Apr  1 15:03:00 2020
 import pandas as pd
 import numpy as np
 from sklearn.preprocessing import StandardScaler
-from matplotlib.pylab import figure, plot, xlabel, ylabel, legend, show
-from sklearn import metrics
+from matplotlib.pylab import figure, plot, xlabel, ylabel, legend, show,subplot, title, clim
+from sklearn import model_selection, metrics
+from toolbox_02450 import feature_selector_lr, bmplot
+
 
 
 
@@ -58,11 +60,11 @@ Xns = binary_heart_data.to_numpy()
 scaler_reg = StandardScaler()
 scaler_reg.fit(regression_heart_data)
 Xr = scaler_reg.transform(regression_heart_data)   # What about y?s
-
+regression_attribute_names=regression_heart_data.columns
 # Non-standardized data
 Xns = binary_heart_data.to_numpy()
 
-
+N, M = Xr.shape
 
 # Clean up variables
 del scaler_binary, scaler_reg, fam_history, fh, heart_data, unique_hist, historyDict
@@ -73,10 +75,155 @@ del scaler_binary, scaler_reg, fam_history, fh, heart_data, unique_hist, history
 #---------------------------------------------
 #MODEL TRAINING
 
-
+'''
 
 from sklearn.model_selection import train_test_split
 Xr_train, Xr_test, yr_train, yr_test = train_test_split(Xr, yr, test_size = 0.25, random_state = 0)
+
+'''
+
+
+
+
+## Crossvalidation
+# Create crossvalidation partition for evaluation
+K = 10
+CV = model_selection.KFold(n_splits=K,shuffle=True)
+
+# Initialize variables
+Features = np.zeros((M,K))
+Error_train = np.empty((K,1))
+Error_test = np.empty((K,1))
+Error_train_fs = np.empty((K,1))
+Error_test_fs = np.empty((K,1))
+Error_train_nofeatures = np.empty((K,1))
+Error_test_nofeatures = np.empty((K,1))
+
+k=0
+for train_index, test_index in CV.split(Xr):
+    
+    # extract training and test set for current CV fold
+    Xr_train = Xr[train_index,:]
+    yr_train = yr[train_index]
+    Xr_test = Xr[test_index,:]
+    yr_test = yr[test_index]
+    internal_cross_validation = 10
+    
+    # Compute squared error without using the input data at all
+    Error_train_nofeatures[k] = np.square(yr_train-yr_train.mean()).sum()/yr_train.shape[0]
+    Error_test_nofeatures[k] = np.square(yr_test-yr_test.mean()).sum()/yr_test.shape[0]
+
+    # Compute squared error with all features selected (no feature selection)
+    # Fitting Linear Regression to the dataset
+    from sklearn.linear_model import LinearRegression
+    lin_reg = LinearRegression(fit_intercept=True,n_jobs=-1)
+    lin_reg.fit(Xr_train, yr_train)
+    Error_train[k] = np.square(yr_train-lin_reg.predict(Xr_train)).sum()/yr_train.shape[0]
+    Error_test[k] = np.square(yr_test-lin_reg.predict(Xr_test)).sum()/yr_test.shape[0]
+
+    # Compute squared error with feature subset selection
+    textout = ''
+    selected_features, features_record, loss_record = feature_selector_lr(Xr_train, yr_train, internal_cross_validation,display=textout)
+    
+    Features[selected_features,k] = 1
+    # .. alternatively you could use module sklearn.feature_selection
+    if len(selected_features) is 0:
+        print('No features were selected, i.e. the data (X) in the fold cannot describe the outcomes (y).' )
+    else:
+        lin_reg = LinearRegression(fit_intercept=True,n_jobs=-1)
+        lin_reg.fit(Xr_train[:,selected_features], yr_train)
+        Error_train_fs[k] = np.square(yr_train-lin_reg.predict(Xr_train[:,selected_features])).sum()/yr_train.shape[0]
+        Error_test_fs[k] = np.square(yr_test-lin_reg.predict(Xr_test[:,selected_features])).sum()/yr_test.shape[0]
+    
+        figure(k)
+        subplot(1,2,1)
+        plot(range(1,len(loss_record)), loss_record[1:])
+        xlabel('Iteration')
+        ylabel('Squared error (crossvalidation)')    
+        
+        subplot(1,3,3)
+        bmplot(regression_attribute_names, range(1,features_record.shape[1]), -features_record[:,1:])
+        clim(-1.5,0)
+        xlabel('Iteration')
+
+
+    print('Cross validation fold {0}/{1}'.format(k+1,K))
+    print('Train indices: {0}'.format(train_index))
+    print('Test indices: {0}'.format(test_index))
+    print('Features no: {0}\n'.format(selected_features.size))
+
+    k+=1
+
+# Display results
+print('\n')
+print('Linear regression without feature selection:\n')
+print('- Training error: {0}'.format(Error_train.mean()))
+print('- Test error:     {0}'.format(Error_test.mean()))
+print('- R^2 train:     {0}'.format((Error_train_nofeatures.sum()-Error_train.sum())/Error_train_nofeatures.sum()))
+print('- R^2 test:     {0}'.format((Error_test_nofeatures.sum()-Error_test.sum())/Error_test_nofeatures.sum()))
+print('Linear regression with feature selection:\n')
+print('- Training error: {0}'.format(Error_train_fs.mean()))
+print('- Test error:     {0}'.format(Error_test_fs.mean()))
+print('- R^2 train:     {0}'.format((Error_train_nofeatures.sum()-Error_train_fs.sum())/Error_train_nofeatures.sum()))
+print('- R^2 test:     {0}'.format((Error_test_nofeatures.sum()-Error_test_fs.sum())/Error_test_nofeatures.sum()))
+
+figure(k)
+subplot(1,3,2)
+bmplot(regression_attribute_names, range(1,Features.shape[1]+1), -Features)
+clim(-1.5,0)
+xlabel('Crossvalidation fold')
+ylabel('Attribute')
+
+
+# Inspect selected feature coefficients effect on the entire dataset and
+# plot the fitted model residual error as function of each attribute to
+# inspect for systematic structure in the residual
+
+f=2 # cross-validation fold to inspect
+ff=Features[:,f-1].nonzero()[0]
+if len(ff) is 0:
+    print('\nNo features were selected, i.e. the data (X) in the fold cannot describe the outcomes (y).' )
+else:
+    lin_reg = LinearRegression(fit_intercept=True,n_jobs=-1)
+    lin_reg.fit(Xr_train[:,ff], yr_train)
+    lin_reg_pred= lin_reg.predict(Xr[:,ff])
+    residual=yr-lin_reg_pred
+    
+    figure(k+1, figsize=(12,6))
+    title('Residual error vs. Attributes for features selected in cross-validation fold {0}'.format(f))
+    for i in range(0,len(ff)):
+       subplot(2,np.ceil(len(ff)/2.0),i+1)
+       plot(Xr[:,ff[i]],residual,'.')
+       xlabel(regression_attribute_names[ff[i]])
+       ylabel('residual error')
+    
+    
+show()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 # Fitting Random Forest Regression to the dataset
@@ -87,12 +234,52 @@ rand_forest.fit(Xr_train, yr_train)
 
 
 
-# Fitting Linear Regression to the dataset
-from sklearn.linear_model import LinearRegression
-lin_reg = LinearRegression(n_jobs=-1)
-lin_reg.fit(Xr_train, yr_train)
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+'''
 # Predicting a new result with Linear Regression
 lin_pred_train = lin_reg.predict(Xr_train)
 lin_pred_test = lin_reg.predict(Xr_test)
@@ -106,14 +293,15 @@ rf_pred = rand_forest.predict(Xr_test)
 # Applying k-Fold Cross Validation
 from sklearn.model_selection import cross_val_score
 lin_reg_accuracies = cross_val_score(estimator = lin_reg, X = Xr_train, y = yr_train, cv = 10, n_jobs = -1)
+print("Accuracy: %0.2f (+/- %0.2f)" % (lin_reg_accuracies.mean(), lin_reg_accuracies.std() * 2))
 
 # Applying k-Fold Cross Validation
 rf_accuracies = cross_val_score(estimator = rand_forest, X = Xr_train, y = yr_train, cv = 10, n_jobs = -1)
+print("Accuracy: %0.3f (+/- %0.3f)" % (rf_accuracies.mean(), rf_accuracies.std() * 2))
 
 
 
 
-'''
 # Applying Grid Search to find the best model and the best parameters
 from sklearn.model_selection import GridSearchCV
 parameters = { 'max_depth': [12,13],
@@ -126,7 +314,7 @@ grid_search = GridSearchCV(estimator = rand_forest,
 grid_search_log = grid_search.fit(Xr_train, yr_train)
 best_accuracy_log = grid_search.best_score_
 best_parameters_log = grid_search.best_params_
-'''
+
 
 
 
@@ -164,7 +352,7 @@ adjusted_r2
 
 #------------------------------------------------------------------------------------
 #idle code
-'''
+
 #Calc of decision trees error
 tc = np.arange(2, 21, 1)
 # Initialize variables
@@ -245,3 +433,11 @@ SL = 0.05
 X_opt = Xr_train[:, [0, 1, 2, 3, 4, 5,6,7,8]]
 X_Modeled = backwardElimination(X_opt, SL)
 '''
+
+
+
+
+
+
+
+
