@@ -1,5 +1,5 @@
 
-from load_data import X#, y, binary_heart_data
+from load_data import X_r, y_r
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -9,30 +9,20 @@ from sklearn.model_selection import train_test_split
 from sklearn import model_selection
 from sklearn.preprocessing import PolynomialFeatures
 from sklearn.pipeline import make_pipeline
+from sklearn.feature_selection import SelectKBest, f_regression, mutual_info_regression
 
 # from matplotlib.pyplot import figure, plot, xlabel, ylabel, legend, subplot, hist, show
 
+# X1 = SelectKBest(mutual_info_regression, k=9).fit_transform(X_r, y_r)
+X1 = SelectKBest(f_regression, k=7).fit_transform(X_r, y_r)
+# X1 = X_r
 
-# Prepare data
-y = np.array(X[:,3]).reshape(-1,1) # y = adiposity
-X0 = X[:,[0,1,2, 4,5,6,7,8]] # exclude adiposity
-# X1 = X[:,[1,2, 4,5,6,7,8]]  # 0: 0.537
-# X1 = X[:,[2,4, 5,6,7,8]]  # 1: 0.5353
-# X1 = X[:,[2, 5,6,7,8]]  # 4/5: 0.5346
-X1 = X[:,[2, 6,7,8]]  # 5: 0.534   <---  best linreg according to primitive backwards selection
-X2 = X[:,[2, 6,8]]  # 7: 0.5345   <---  best ridgereg (3rd order poly)
-# X2 = X[:,[ 6,8]]  # 2: 0.5444
-# X2 = X[:,[ 6 ]]  # 8: 0.6955
-
+X2 = SelectKBest(f_regression, k=7).fit_transform(X_r, y_r)
+# X2 = X_r
 
 ### REGRESSION, PART A ###
 
-#%% 1. Adiposity because it's well correlated? Show that we can use regression
-#      to impute missing data?
-
-# All attributes are used. Do we want some improved attribute selection?
-# Standardization should strictly speaking happen within each fold. Not sure
-# if it really matters in our case
+#%% 1. 
 
 # K-fold crossvalidation
 K = 10
@@ -45,8 +35,8 @@ k=0
 for train_index, test_index in CV.split(X1):
 
     # extract training and test set for current CV fold
-    X_train, y_train = X1[train_index,:], y[train_index]
-    X_test, y_test = X1[test_index,:], y[test_index]
+    X_train, y_train = X1[train_index,:], y_r[train_index]
+    X_test, y_test = X1[test_index,:], y_r[test_index]
 
     # Fit ordinary least squares regression model
     lin_reg = lm.LinearRegression(fit_intercept=True)
@@ -61,19 +51,16 @@ for train_index, test_index in CV.split(X1):
     k+=1
     
 #------------------------------------------
-#Thanos' 10K-Fold cross validation
-
-   
+# Thanos' 10K-Fold cross validation
 # Applying k-Fold Cross Validation
-
 from sklearn.model_selection import cross_val_score
-accuracies = cross_val_score(estimator = lin_reg, X = X_train, y = y_train, cv = 10)
+accuracies = cross_val_score(estimator = lin_reg, X = X_train, y = y_train, cv = 10) # This is the same X_train as from the for loop before :)
 accuracies.mean()
 accuracies.std()
-
 #------------------------------------------
 
 print('Linear regression MSE:', np.round(np.mean(mse),4))
+print('Linear regression RMSE:', np.sqrt(np.round(np.mean(mse),4)))
 
 del k, K, lin_reg, train_index, test_index
 del mse
@@ -99,8 +86,8 @@ k=0
 for train_index, test_index in CV.split(X2):
 
     # extract training and test set for current CV fold
-    X_train, y_train = X2[train_index,:], y[train_index]
-    X_test, y_test = X2[test_index,:], y[test_index]
+    X_train, y_train = X2[train_index,:], y_r[train_index]
+    X_test, y_test = X2[test_index,:], y_r[test_index]
 
     # Fit for each lambda
     for i, lam in enumerate(lambdas):
@@ -127,19 +114,23 @@ min_error = np.min(test_error)
 min_error_index = np.where(test_error == min_error)[0][0]
 
 plt.figure(figsize=(8,8))
-plt.semilogx(lambdas, train_error)
-plt.semilogx(lambdas, test_error)
+plt.semilogx(lambdas, np.sqrt(train_error))
+plt.semilogx(lambdas, np.sqrt(test_error))
+# plt.semilogx(lambdas, train_error)
+# plt.semilogx(lambdas, test_error)
 plt.semilogx(lambdas[min_error_index], min_error, 'o')
-plt.text(0.007, 0.58, "Minimum test error: " + str(np.round(min_error,4)) + ' at 1e' + str(np.round(np.log10(lambdas[min_error_index]),2)))
+plt.text(1, 10, "Minimum test error: " + str(np.round(np.sqrt(min_error),2)) + ' at 1e' + str(np.round(np.log10(lambdas[min_error_index]),2)))
 plt.xlabel('Regularization strength, $\log_{10}(\lambda)$')
-plt.ylabel('MSE')
+plt.ylabel('RMSE')
 plt.title('Regression error')
 plt.legend(['Training error','Test error','Test minimum'],loc='upper right')
-plt.ylim([0.2, 0.9])
+plt.ylim([5, 15])
+# plt.ylim([60, 120])
 plt.grid()
 plt.show()  
 
 print('Ridge regression MSE:', np.round(np.mean(min_error),4))
+print('Ridge regression RMSE:', np.sqrt(np.round(np.mean(min_error),4)))
 
 
 
@@ -182,11 +173,11 @@ CV2 = model_selection.KFold(n_splits=K2, shuffle=True, random_state=43)
 
 # Outer CV for test data
 k=0
-for par_index, test_index in CV1.split(X0):
+for par_index, test_index in CV1.split(X_r):
 
     # extract training and test set for current CV fold
-    X_par, y_par = X0[par_index,:], y[par_index]
-    X_test, y_test = X0[test_index,:], y[test_index]
+    X_par, y_par = X_r[par_index,:], y_r[par_index]
+    X_test, y_test = X_r[test_index,:], y_r[test_index]
 
 
     # Init mean square validation error
@@ -295,7 +286,21 @@ del par_index, train_index, val_index, test_index
 
 
 
-#%% Copy/pase bin, junk and other stuff
+#%% Copy/paste bin, junk and other stuff
+
+
+
+# Prepare data
+# y = np.array(X[:,3]).reshape(-1,1) # y = adiposity
+# X0 = X[:,[0,1,2, 4,5,6,7,8]] # exclude adiposity
+# # X1 = X[:,[1,2, 4,5,6,7,8]]  # 0: 0.537
+# # X1 = X[:,[2,4, 5,6,7,8]]  # 1: 0.5353
+# # X1 = X[:,[2, 5,6,7,8]]  # 4/5: 0.5346
+# X1 = X[:,[2, 6,7,8]]  # 5: 0.534   <---  best linreg according to primitive backwards selection
+# X2 = X[:,[2, 6,8]]  # 7: 0.5345   <---  best ridgereg (3rd order poly)
+# # X2 = X[:,[ 6,8]]  # 2: 0.5444
+# # X2 = X[:,[ 6 ]]  # 8: 0.6955
+
 
 
 # X2, X_te, y2, y_te = train_test_split(X, y, test_size = 0.2, random_state = 42)

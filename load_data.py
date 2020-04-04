@@ -17,20 +17,32 @@ historyDict = dict(zip(fam_history,[1,0]))
 
 # The transformed array replaces the famhist values
 fh = np.array([historyDict[cl] for cl in fam_history])
-binary_heart_data = heart_data.copy()
-binary_heart_data.famhist = fh
-y = heart_data[['chd']].to_numpy().squeeze()
-binary_heart_data.drop('row.names', axis=1, inplace=True)
-binary_heart_data.drop('chd', axis=1, inplace=True)
+bin_data = heart_data.copy()
+bin_data.famhist = fh
+
+y_r = heart_data[['age']].to_numpy().squeeze()
+y_c = heart_data[['chd']].to_numpy().squeeze()
+
+bin_data.drop('row.names', axis=1, inplace=True)
+
+df_r = bin_data.copy()
+df_c = bin_data.copy()
+
+df_r.drop('age', axis=1, inplace=True)
+df_c.drop('chd', axis=1, inplace=True)
+
 
 # Data standardization: We scale our data so that each feature has
 # a single unit of variance.
 scaler = StandardScaler()
-scaler.fit(binary_heart_data)
-X = scaler.transform(binary_heart_data)   # What about y?s
+scaler.fit(df_r)
+scaler.fit(df_c)
+X_r = scaler.transform(df_r)
+X_c = scaler.transform(df_c)
 
 # Non-standardized data
-Xns = binary_heart_data.to_numpy()
+Xns_r = df_r.to_numpy()
+Xns_c = df_c.to_numpy()
 
 # Clean up variables
-# del scaler, fam_history, fh, heart_data, unique_hist, historyDict
+del scaler, fam_history, fh, heart_data, unique_hist, historyDict, df_r, df_c
