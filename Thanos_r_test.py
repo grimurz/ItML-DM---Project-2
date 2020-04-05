@@ -49,6 +49,26 @@ regression_heart_data.drop('age', axis=1, inplace=True)
 #regression_heart_data.drop('tobacco', axis=1, inplace=True)
 # Data standardization: We scale our data so that each feature has
 # a single unit of variance.
+
+#Binarization of tobacco, alcohol in the classification data
+tobacco_binary = binary_heart_data['tobacco']>0.5
+binary_heart_data.insert(2, 'tobacco_binary', tobacco_binary, allow_duplicates = False)
+alcohol_binary =binary_heart_data['alcohol']==0
+binary_heart_data.insert(9, 'alcohol_binary', alcohol_binary, allow_duplicates = False)
+
+binary_heart_data.tobacco_binary=binary_heart_data.tobacco_binary.astype(int)
+binary_heart_data.alcohol_binary=binary_heart_data.alcohol_binary.astype(int)
+
+#Binarization of tobacco, alcohol in the regression data
+tobacco_binary = regression_heart_data['tobacco']>0.5
+regression_heart_data.insert(2, 'tobacco_binary', tobacco_binary, allow_duplicates = False)
+alcohol_binary =regression_heart_data['alcohol']==0
+regression_heart_data.insert(9, 'alcohol_binary', alcohol_binary, allow_duplicates = False)
+
+regression_heart_data.tobacco_binary=regression_heart_data.tobacco_binary.astype(int)
+regression_heart_data.alcohol_binary=regression_heart_data.alcohol_binary.astype(int)
+
+
 scaler_binary = StandardScaler()
 scaler_binary.fit(binary_heart_data)
 Xc = scaler_binary.transform(binary_heart_data)   # What about y?s

@@ -33,6 +33,25 @@ binary_heart_data.drop('row.names', axis=1, inplace=True)
 regression_heart_data = binary_heart_data.copy()
 binary_heart_data.drop('chd', axis=1, inplace=True)
 regression_heart_data.drop('age', axis=1, inplace=True)
+
+#Binarization of tobacco, alcohol in the classification data
+tobacco_binary = binary_heart_data['tobacco']>0.5
+binary_heart_data.insert(2, 'tobacco_binary', tobacco_binary, allow_duplicates = False)
+alcohol_binary =binary_heart_data['alcohol']==0
+binary_heart_data.insert(9, 'alcohol_binary', alcohol_binary, allow_duplicates = False)
+
+binary_heart_data.tobacco_binary=binary_heart_data.tobacco_binary.astype(int)
+binary_heart_data.alcohol_binary=binary_heart_data.alcohol_binary.astype(int)
+
+#Binarization of tobacco, alcohol in the regression data
+tobacco_binary = regression_heart_data['tobacco']>0.5
+regression_heart_data.insert(2, 'tobacco_binary', tobacco_binary, allow_duplicates = False)
+alcohol_binary =regression_heart_data['alcohol']==0
+regression_heart_data.insert(9, 'alcohol_binary', alcohol_binary, allow_duplicates = False)
+
+regression_heart_data.tobacco_binary=regression_heart_data.tobacco_binary.astype(int)
+regression_heart_data.alcohol_binary=regression_heart_data.alcohol_binary.astype(int)
+
 # Data standardization: We scale our data so that each feature has
 # a single unit of variance.
 scaler_binary = StandardScaler()
@@ -75,10 +94,6 @@ Xc_test_LDA = lda.transform(Xc_test)
 #----------------------Regression Models-------------------------------------
 
 
-# Fitting Linear Regression to the dataset
-from sklearn.linear_model import LinearRegression
-lin_reg = LinearRegression(n_jobs=-1)
-lin_reg.fit(Xr_train, yr_train)
 
 
 # Fitting Random Forest Regression to the dataset
@@ -87,13 +102,75 @@ rand_forest = RandomForestRegressor(n_estimators = 290, max_depth=12, min_sample
 rand_forest.fit(Xr_train, yr_train)
 
 
-# Fitting Polynomial Regression to the dataset
+
+#PROJECT 2, Regression, PART a, points 1-2, --------------------------------
+
+#INSERT A REGULARIZATION TERM IN EACH FOLD TO WORK PROPERLY, OTHERWISE YOU GET THE SAME RESULT IN EACH FOLD
+#No feature selection
+
 from sklearn.preprocessing import PolynomialFeatures
-poly_reg = PolynomialFeatures(degree = 3)
-X_poly = poly_reg.fit_transform(Xr_train)
-poly_reg.fit(X_poly, yr_train)
-lin_reg_2 = LinearRegression(n_jobs=-1)
-lin_reg_2.fit(X_poly, yr_train)
+from sklearn.linear_model import LinearRegression
+from sklearn import model_selection
+# K-fold crossvalidation
+K = 10
+CV = model_selection.KFold(n_splits=K,shuffle=True)
+
+lc = np.arange(0.025,1.26,0.025)
+poly = np.logspace(-3, 4, 50)
+# Initialize variables
+Error_train_lin = np.empty((len(lc),K))
+Error_test_lin = np.empty((len(lc),K))
+
+w=0
+for train_index, test_index in CV.split(Xr):
+    print('Computing logistic CV fold: {0}/{1}..'.format(w+1,K))
+
+    # extract training and test set for current CV fold
+    Xr_train_KFold_lin, yr_train_KFold_lin = Xr[train_index,:], yr[train_index]
+    Xr_test_KFold_lin, yr_test_KFold_lin = Xr[test_index,:], yr[test_index]
+    for d, f in enumerate(lc):
+        
+        # Fitting linear Regression model to the Training set
+        lin_reg = LinearRegression( n_jobs=-1)
+        lin_reg.fit(Xr_train_KFold_lin, yr_train_KFold_lin.ravel())
+        lin_test_pred = lin_reg.predict(Xr_test_KFold_lin)
+        lin_train_pred = lin_reg.predict(Xr_train_KFold_lin)
+        misclass_rate_test = np.square(yr_test_KFold_lin-lin_test_pred).sum()/yr_test_KFold_lin.shape[0]
+        misclass_rate_train = np.square(yr_train_KFold_lin-lin_train_pred).sum()/yr_train_KFold_lin.shape[0]
+        Error_test_lin[d,w], Error_train_lin[d,w] = misclass_rate_test, misclass_rate_train
+        
+        # Fitting Polynomial Regression model to the Training set
+        '''
+        poly_reg = PolynomialFeatures(degree = 3, order='F')
+        X_poly = poly_reg.fit_transform(Xr_train)
+        poly_reg.fit(X_poly, yr_train)
+        lin_reg_2 = LinearRegression(n_jobs=-1)
+        lin_reg_2.fit(X_poly, yr_train)
+        '''
+        
+        
+    w+=1
+#penalty='elasticnet', , solver='saga',l1_ratio=ratio
+
+
+
+f = figure()
+boxplot(Error_test_lin.T)
+xlabel('Complexity: Regularization Factor')
+ylabel('Test error across CV folds, K={0})'.format(K))
+f = figure()
+plot(lc, np.sqrt(Error_train_lin.mean(1)))
+plot(lc, np.sqrt(Error_test_lin.mean(1)))
+xlabel('Complexity: Regularization Factor')
+ylabel('Error (RMSE, CV K={0})'.format(K))
+legend(['Error_train','Error_test'])
+    
+show() 
+ 
+
+
+#MOVING ON WITH THE BEST TUNED REGULARIZATION FACTOR('C')
+
 
 
 
@@ -101,8 +178,8 @@ lin_reg_2.fit(X_poly, yr_train)
 
 
 
-## Linear regression model with nested cros validation
-# Outer loop
+## Linear regression model with nested cros validation AND feature selection
+
 K = 10
 CV = model_selection.KFold(n_splits=K,shuffle=True)
 
@@ -116,7 +193,7 @@ Error_train_nofeatures = np.empty((K,1))
 Error_test_nofeatures = np.empty((K,1))
 
 k=0
-#Inner loop
+# Outer loop
 for train_index, test_index in CV.split(Xr):
     
     # extract training and test set for current CV fold
@@ -141,7 +218,7 @@ for train_index, test_index in CV.split(Xr):
     # Compute squared error with feature subset selection
     textout = ''
     selected_features, features_record, loss_record = feature_selector_lr(Xr_train, yr_train, internal_cross_validation,display=textout)
-    
+    #Inner loop
     Features[selected_features,k] = 1
     # .. alternatively you could use module sklearn.feature_selection
     if len(selected_features) is 0:
@@ -219,7 +296,7 @@ show()
 
 
 
-
+#FITTING THE BEST SET OF FEATURES TO THE MODELS TO BE COMPARED
 
 
 
@@ -239,10 +316,82 @@ SVM_classifier.fit(Xc_train, yc_train)
 
  '''
  
-#PROJECT 2, Classification, points 1-2 
-#LOGISTIC REGRESSION MODEL
+#PROJECT 2, Classification, points 1-2-3 ----------------------
+
+#LOGISTIC REGRESSION MODEL 
+
+#Hyper-parameter training and selection
+
+from sklearn.linear_model import LogisticRegression
+from sklearn import model_selection
+from sklearn.model_selection import GridSearchCV
+from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
+# K-fold crossvalidation
+K = 10
+CV = model_selection.KFold(n_splits=K,shuffle=True)
+
+# Initialize variables
+Error_train_GRID_log = np.empty((K,1))
+Error_test_GRID_log = np.empty((K,1))
+
+k=0
+# Outer loop
+for train_index, test_index in CV.split(Xr):
+    
+    # extract training and test set for current CV fold
+    Xc_train_GRID_log = Xc[train_index,:]
+    yc_train_GRID_log = yc[train_index]
+    Xc_test_GRID_log = Xc[test_index,:]
+    yc_test_GRID_log = yc[test_index]
+    
+    # Applying LDA
+
+    lda = LDA(n_components = 2)
+    Xc_train_LDA = lda.fit_transform(Xc_train_GRID_log, yc_train_GRID_log)
+    Xc_test_LDA = lda.transform(Xc_test_GRID_log)
+   
+    log_classifier = LogisticRegression( C=1,  n_jobs=-1, random_state = 0)
+    log_classifier.fit(Xc_train_LDA, yc_train_GRID_log)
+
+    #Grid search for classification SVM
+
+    parameters = [{'C': [0.00000001,0.0000001,0.000001,0.00001,0.0001,0.001,0.01,0.1,1,10]}]
+    grid_search = GridSearchCV(estimator = log_classifier,
+                               param_grid = parameters,
+                               scoring = 'neg_log_loss',
+                               cv = 10,
+                               n_jobs = -1)
+    grid_search= grid_search.fit(Xc_train_LDA, yc_train_GRID_log)
+    
+    misclass_rate_test = sum(grid_search.predict(Xc_test_LDA) != yc_test_GRID_log) / float(len(grid_search.predict(Xc_test_LDA)))
+    misclass_rate_train = sum(grid_search.predict(Xc_train_LDA) != yc_train_GRID_log) / float(len(grid_search.predict(Xc_train_LDA)))
+    Error_test_GRID_log[k], Error_train_GRID_log[k] = misclass_rate_test, misclass_rate_train
+    best_accuracy_log = grid_search.best_score_
+    best_parameters_log = grid_search.best_params_
+    print('Cross validation fold {0}/{1}'.format(k+1,K))
+    print('Train Error: {0}'.format(Error_train_GRID_log[k]))
+    print('Test Error: {0}'.format(Error_test_GRID_log[k]))
+    k+=1
+print('Train Error Accuracy({0}Kforld): {1}\n'.format(K,Error_train_GRID_log.T.mean(1)))
+print('Test Error Accuracy({0}Kforld): {1}\n'.format(K,Error_test_GRID_log.T.mean(1)))
+#mean_train = Error_train_GRID_log.mean(1)
+#mean_test = Error_test_GRID_log.mean(1)
+C=[0.00000001,0.0000001,0.000001,0.00001,0.0001,0.001,0.01,0.1,1,10]
+import matplotlib.pyplot as plt
+plt.semilogx(C, Error_train_GRID_log*100)
+plt.semilogx(C, Error_test_GRID_log*100)
+xlabel('Regularization factor')
+ylabel('Error (%), CV K={0}'.format(K))
+legend(['Error_train','Error_test'],loc=0)
 
 
+plt.show()
+
+
+#0.0000001,0.000001,0.00001,0.0001,0.001,0.01,0.1,1,10,100
+
+
+#Nested CV of the tested models
 
 
 from sklearn.linear_model import LogisticRegression
@@ -279,7 +428,7 @@ for train_index, test_index in CV.split(Xc):
         
         
         # Fitting Logistic Regression model to the Training set
-        log_classifier = LogisticRegression( C=c,  n_jobs=-1, random_state = 0)
+        log_classifier = LogisticRegression( C=c, n_jobs=-1, random_state = 0)
         log_classifier.fit(Xc_train_KFold_log, yc_train_KFold_log.ravel())
         log_test_pred = log_classifier.predict(Xc_test_KFold_log)
         log_train_pred = log_classifier.predict(Xc_train_KFold_log)
@@ -291,15 +440,15 @@ for train_index, test_index in CV.split(Xc):
 #penalty='elasticnet', , solver='saga',l1_ratio=ratio
 f = figure()
 boxplot(Error_test_log.T)
-xlabel('Complexity: Regularization Factor')
+xlabel('Log Complexity: Regularization Factor')
 ylabel('Test error across CV folds, K={0})'.format(K))
 f = figure()
-plot(lc, Error_train_log.mean(1))
-plot(lc, Error_test_log.mean(1))
-plot(lc, Error_train_log_intercept.mean(1))
-plot(lc, Error_test_log_intercept.mean(1))
-xlabel('Complexity: Regularization Factor')
-ylabel('Error (MSE, CV K={0})'.format(K))
+plot(lc, np.sqrt(Error_train_log.mean(1)))
+plot(lc, np.sqrt(Error_test_log.mean(1)))
+plot(lc, np.sqrt(Error_train_log_intercept.mean(1)))
+plot(lc, np.sqrt(Error_test_log_intercept.mean(1)))
+xlabel('Log Complexity: Regularization Factor')
+ylabel('Error (RMSE, CV K={0})'.format(K))
 legend(['Error_train','Error_test'])
     
 show() 
@@ -341,25 +490,35 @@ for train_index, test_index in CV.split(Xc):
 
 f = figure()
 boxplot(Error_test.T)
-xlabel('Complexity: Estimators-min_samples leaf+Split')
+xlabel('RF Complexity: Estimators-min_samples leaf+Split')
 ylabel('Test error across CV folds, K={0})'.format(K))
 f = figure()
-plot(tc, Error_train.mean(1))
-plot(tc, Error_test.mean(1))
-xlabel('Complexity: Estimators-min_samples leaf+Split')
-ylabel('Error (MSE, CV K={0})'.format(K))
+plot(tc, np.sqrt(Error_train.mean(1)))
+plot(tc, np.sqrt(Error_test.mean(1)))
+xlabel('RF Complexity: Estimators-min_samples leaf+Split')
+ylabel('Error (RMSE, CV K={0})'.format(K))
 legend(['Error_train','Error_test'])
     
 show()
 
 
 import matplotlib.pyplot as plt
-plt.plot(tc,Error_test.mean(1), marker='o', markerfacecolor='blue', markersize=7, color='skyblue', linewidth=3,label='Random forests' )
-plt.plot(tc, Error_test_log.mean(1), marker='', color='olive', linewidth=3, label= 'Logistic Regression')
-plt.plot(tc,Error_test_log_intercept.mean(1), marker='', color='olive', linewidth=3, linestyle='dashed', label="Baseline")
-plt.legend()
+plt.plot(tc,np.sqrt(Error_test.mean(1)), marker='o', markerfacecolor='blue', markersize=7, color='skyblue', linewidth=3,label='Random forests' )
+plt.plot(tc, np.sqrt(Error_test_log.mean(1)), marker='', color='olive', linewidth=3, label= 'Logistic Regression')
+plt.plot(tc,np.sqrt(Error_test_log_intercept.mean(1)), marker='', color='olive', linewidth=3, linestyle='dashed', label="Baseline")
+xlabel('Complexity')
+ylabel('RMSE')
+plt.legend(loc=0)
 
 plt.show()
+
+
+
+
+
+
+
+
 
 
 '''
