@@ -59,14 +59,9 @@ del scaler_binary, scaler_reg, fam_history, fh, heart_data, unique_hist, history
 #---------------------------------------------
 #MODEL TRAINING
 
-
-
 # Splitting the dataset into the Training set and Test set
 from sklearn.model_selection import train_test_split
 Xc_train, Xc_test, yc_train, yc_test = train_test_split(Xc, yc, test_size = 0.25, random_state = 0)
-
-
-
 Xr_train, Xr_test, yr_train, yr_test = train_test_split(Xr, yr, test_size = 0.25, random_state = 0)
 
 
@@ -75,7 +70,6 @@ from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
 lda = LDA(n_components = 2)
 Xc_train_LDA = lda.fit_transform(Xc_train, yc_train)
 Xc_test_LDA = lda.transform(Xc_test)
-
 
 
 #----------------------Regression Models-------------------------------------

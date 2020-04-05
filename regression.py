@@ -13,6 +13,8 @@ from sklearn.feature_selection import SelectKBest, f_regression, mutual_info_reg
 
 # from matplotlib.pyplot import figure, plot, xlabel, ylabel, legend, subplot, hist, show
 
+X0 = SelectKBest(f_regression, k=7).fit_transform(X_r, y_r)
+
 # X1 = SelectKBest(mutual_info_regression, k=9).fit_transform(X_r, y_r)
 X1 = SelectKBest(f_regression, k=7).fit_transform(X_r, y_r)
 # X1 = X_r
@@ -49,18 +51,9 @@ for train_index, test_index in CV.split(X1):
     mse[k] = np.mean((y_pred-y_test)**2)
 
     k+=1
-    
-#------------------------------------------
-# Thanos' 10K-Fold cross validation
-# Applying k-Fold Cross Validation
-from sklearn.model_selection import cross_val_score
-accuracies = cross_val_score(estimator = lin_reg, X = X_train, y = y_train, cv = 10) # This is the same X_train as from the for loop before :)
-accuracies.mean()
-accuracies.std()
-#------------------------------------------
 
 print('Linear regression MSE:', np.round(np.mean(mse),4))
-print('Linear regression RMSE:', np.sqrt(np.round(np.mean(mse),4)))
+print('Linear regression RMSE:', np.round(np.sqrt(np.mean(mse)),4),'\n')
 
 del k, K, lin_reg, train_index, test_index
 del mse
@@ -118,7 +111,7 @@ plt.semilogx(lambdas, np.sqrt(train_error))
 plt.semilogx(lambdas, np.sqrt(test_error))
 # plt.semilogx(lambdas, train_error)
 # plt.semilogx(lambdas, test_error)
-plt.semilogx(lambdas[min_error_index], min_error, 'o')
+plt.semilogx(lambdas[min_error_index], np.sqrt(min_error), 'o')
 plt.text(1, 10, "Minimum test error: " + str(np.round(np.sqrt(min_error),2)) + ' at 1e' + str(np.round(np.log10(lambdas[min_error_index]),2)))
 plt.xlabel('Regularization strength, $\log_{10}(\lambda)$')
 plt.ylabel('RMSE')
@@ -130,12 +123,13 @@ plt.grid()
 plt.show()  
 
 print('Ridge regression MSE:', np.round(np.mean(min_error),4))
-print('Ridge regression RMSE:', np.sqrt(np.round(np.mean(min_error),4)))
+print('Ridge regression RMSE:', np.round(np.sqrt(np.mean(min_error)),4))
+print('lambda:', np.round(lambdas[min_error_index],4))
 
 
 
 del k, K, i, lam, ridge_reg, train_index, test_index
-del mse_train, mse_test, min_error, min_error_index
+# del mse_train, mse_test, min_error, min_error_index
 
 
 #%% 3. 
@@ -155,8 +149,8 @@ https://scikit-learn.org/stable/auto_examples/linear_model/plot_polynomial_inter
 
 #%% 1. K1/K2 and CV1/CV2 redundant? 
 
-K1 = 3 # 10
-K2 = 10
+K1 =  2 # 10
+K2 =  4 # 10
 
 # Init hyperparameters
 hidden_units = np.arange(start = 1, stop = 20, step = 3)
@@ -169,20 +163,27 @@ bl_error = np.zeros(K1)  # baseline
 
 
 CV1 = model_selection.KFold(n_splits=K1, shuffle=True, random_state=42)
-CV2 = model_selection.KFold(n_splits=K2, shuffle=True, random_state=43)
+CV2 = model_selection.KFold(n_splits=K2, shuffle=True, random_state=43) # reduntant?
 
 # Outer CV for test data
 k=0
-for par_index, test_index in CV1.split(X_r):
+for par_index, test_index in CV1.split(X0):
 
     # extract training and test set for current CV fold
-    X_par, y_par = X_r[par_index,:], y_r[par_index]
-    X_test, y_test = X_r[test_index,:], y_r[test_index]
+    X_par, y_par = X0[par_index,:], y_r[par_index]
+    X_test, y_test = X0[test_index,:], y_r[test_index]
 
-
-    # Init mean square validation error
-    mse_ann_val = np.zeros([K2,len(hidden_units)])
-    mse_rr_val = np.zeros([K2,len(lambdas)])
+    # Init RMSE
+    ann_error_val = np.zeros([K2,len(hidden_units)])
+    rr_error_val = np.zeros([K2,len(lambdas)])
+    
+    # Init optimal lambda & optimal h
+    h_opt = np.zeros(K2)
+    lambda_opt = np.zeros(K2)
+    
+    # Init min error
+    min_error_ann_val = np.zeros(K2)
+    min_error_rr_val = np.zeros(K2)
 
     # Inner loop for training and validation
     j=0
@@ -192,74 +193,83 @@ for par_index, test_index in CV1.split(X_r):
         X_train, y_train = X_par[train_index,:], y_par[train_index]
         X_val, y_val = X_par[val_index,:], y_par[val_index]
 
-        # crunch that sweet training data
+        ##### crunch that sweet training data #####
 
-        # ANN
-            
+        # ANN training
+  
+
+          
             
 
-        # Ridge
+        # Ridge training
         for i, lam in enumerate(lambdas):
     
             # Fit ridge regression model
             ridge_reg = make_pipeline(PolynomialFeatures(3), Ridge(alpha=lam))
-            ridge_reg.fit(X_train[:,[2, 5,7]] , y_train)        # <---- [:,[2, 6,8]]  !!!
-            # ridge_reg.fit(X_train , y_train)
+            ridge_reg.fit(X_train, y_train)
     
             # Compute model output:
-            y_val_pred = ridge_reg.predict(X_val[:,[2, 5,7]] )  # <---- [:,[2, 6,8]] !!!
-            # y_val_pred = ridge_reg.predict(X_val)
+            y_val_pred = ridge_reg.predict(X_val)
     
-            # Calculate error
-            mse_rr_val[j,i] = np.mean((y_val_pred-y_val)**2)
+            # Calculate error (RMSE)
+            rr_error_val[j,i] = np.sqrt(np.mean((y_val_pred-y_val)**2))
 
+        mean_rr_error_val = np.mean(rr_error_val,axis=0)
+        min_error_rr_val[j] = np.min(mean_rr_error_val)
 
-        
-        # validate that shiz and find those optimal hypers
+        min_error_rr_index = np.where(mean_rr_error_val == min_error_rr_val[j])[0][0]
+        lambda_opt[j] = lambdas[min_error_rr_index]
+    
+        print('\nK1:',k+1,' K2:',j+1)
+        print('min rr RMSE error:', np.round(min_error_rr_val[j],4))
+        print('opt lambda:', np.round(lambdas[min_error_rr_index],4))
+    
+    
+        # Temp visualization, to be commented
+        plt.figure(figsize=(8,8))
+        plt.semilogx(lambdas, mean_rr_error_val)
+        plt.semilogx(lambdas[min_error_rr_index], min_error_rr_val[j], 'o')
+        plt.xlabel('Regularization strength, $\log_{10}(\lambda)$')
+        plt.ylabel('RMSE')
+        plt.title('Regression error')
+        plt.legend(['Val error','Val minimum'],loc='upper right')
+        plt.ylim([0, 30])
+        plt.grid()
+        plt.show()  
+
         
         j+=1
 
-    mean_mse_rr_val = np.mean(mse_rr_val,axis=0)
-    min_error_rr_val = np.min(mean_mse_rr_val)
-    min_error_rr_index = np.where(mean_mse_rr_val == min_error_rr_val)[0][0]
-
-    print('\nmin rr error:',min_error_rr_val)
-    print('lambda:',lambdas[min_error_rr_index])
+    print('\nmean rr val error', np.round(np.mean(min_error_rr_val),4))
+    print('mean lambda', np.round(np.mean(lambda_opt),4))
 
 
-    # Temp visualization
-    plt.figure(figsize=(8,8))
-    plt.semilogx(lambdas, mean_mse_rr_val)
-    plt.semilogx(lambdas[min_error_rr_index], min_error_rr_val, 'o')
-    plt.xlabel('Regularization strength, $\log_{10}(\lambda)$')
-    plt.ylabel('MSE')
-    plt.title('Regression error')
-    plt.legend(['Val error','Val minimum'],loc='upper right')
-    plt.ylim([0.2, 0.9])
-    plt.grid()
-    plt.show()  
+    ##### test data here #####
 
+    # ANN testing
 
-
-
-
-    ### test data here ###
-
-    # ANN
+    # ann_error[k] =
         
-        
-    # Ridge
+    
+    # Ridge testing
+    ridge_reg.fit(X_par, y_par)
+    y_test_pred = ridge_reg.predict(X_test)
+    rr_error[k] = np.sqrt(np.mean((y_test_pred-y_test)**2))
 
-
-    # Baseline
+    # Baseline testing
     y_bl_pred = np.mean(y_test)
-    bl_error[k] = np.mean((y_bl_pred-y_test)**2)  # mean square error
+    bl_error[k] = np.sqrt(np.mean((y_bl_pred-y_test)**2))  # root mean square error
 
     k+=1
     
     
 # Take mean from all three methods and compare?
+print('\n')
+print('final ann error:', np.round(ann_error,2))
+print('final rr error:', np.round(rr_error,2))
+print('final bl error:', np.round(bl_error,2))
 
+print('\nfinal means:', np.round(np.mean(ann_error),2), np.round(np.mean(rr_error),2), np.round(np.mean(bl_error),2))
 
 
 del i, j, k, K1, K2, y_bl_pred, lam
