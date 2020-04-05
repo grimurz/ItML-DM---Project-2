@@ -96,11 +96,6 @@ Xc_test_LDA = lda.transform(Xc_test)
 
 
 
-# Fitting Random Forest Regression to the dataset
-from sklearn.ensemble import RandomForestRegressor
-rand_forest = RandomForestRegressor(n_estimators = 290, max_depth=12, min_samples_split= 15,min_samples_leaf=2, max_features="auto",bootstrap=True, random_state = 0, n_jobs= -1)
-rand_forest.fit(Xr_train, yr_train)
-
 
 
 #PROJECT 2, Regression, PART a, points 1-2, --------------------------------
@@ -322,17 +317,24 @@ SVM_classifier.fit(Xc_train, yc_train)
 
 #Hyper-parameter training and selection
 
+
+from sklearn.ensemble import RandomForestRegressor
 from sklearn.linear_model import LogisticRegression
 from sklearn import model_selection
 from sklearn.model_selection import GridSearchCV
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
+
 # K-fold crossvalidation
 K = 10
 CV = model_selection.KFold(n_splits=K,shuffle=True)
 
 # Initialize variables
+Error_train_base = np.empty((K,1))
+Error_test_base = np.empty((K,1))
 Error_train_GRID_log = np.empty((K,1))
 Error_test_GRID_log = np.empty((K,1))
+Error_train_RF = np.empty((K,1))
+Error_test_RF = np.empty((K,1))
 
 k=0
 # Outer loop
@@ -344,6 +346,11 @@ for train_index, test_index in CV.split(Xr):
     Xc_test_GRID_log = Xc[test_index,:]
     yc_test_GRID_log = yc[test_index]
     
+    #Baseline Logistic Regression model with LDA transformation
+    
+    log_classifier_base = LogisticRegression( C=1,  n_jobs=-1, random_state = 0)
+    log_classifier_base.fit(Xc_train_GRID_log, yc_train_GRID_log)
+    
     # Applying LDA
 
     lda = LDA(n_components = 2)
@@ -353,7 +360,7 @@ for train_index, test_index in CV.split(Xr):
     log_classifier = LogisticRegression( C=1,  n_jobs=-1, random_state = 0)
     log_classifier.fit(Xc_train_LDA, yc_train_GRID_log)
 
-    #Grid search for classification SVM
+    #Grid search for Logistic Regression
 
     parameters = [{'C': [0.00000001,0.0000001,0.000001,0.00001,0.0001,0.001,0.01,0.1,1,10]}]
     grid_search = GridSearchCV(estimator = log_classifier,
@@ -363,23 +370,56 @@ for train_index, test_index in CV.split(Xr):
                                n_jobs = -1)
     grid_search= grid_search.fit(Xc_train_LDA, yc_train_GRID_log)
     
+    #Error calculation for the baseline model
+    misclass_rate_test_base = sum(log_classifier_base.predict(Xc_test_GRID_log) != yc_test_GRID_log) / float(len(log_classifier_base.predict(Xc_test_GRID_log)))
+    misclass_rate_train_base = sum(log_classifier_base.predict(Xc_train_GRID_log) != yc_train_GRID_log) / float(len(log_classifier_base.predict(Xc_train_GRID_log)))
+    Error_test_base[k], Error_train_base[k] = misclass_rate_test_base, misclass_rate_train_base
+    #Error calculation for the LDA Logistic Regression model
     misclass_rate_test = sum(grid_search.predict(Xc_test_LDA) != yc_test_GRID_log) / float(len(grid_search.predict(Xc_test_LDA)))
     misclass_rate_train = sum(grid_search.predict(Xc_train_LDA) != yc_train_GRID_log) / float(len(grid_search.predict(Xc_train_LDA)))
     Error_test_GRID_log[k], Error_train_GRID_log[k] = misclass_rate_test, misclass_rate_train
+    
+    
     best_accuracy_log = grid_search.best_score_
     best_parameters_log = grid_search.best_params_
     print('Cross validation fold {0}/{1}'.format(k+1,K))
     print('Train Error: {0}'.format(Error_train_GRID_log[k]))
     print('Test Error: {0}'.format(Error_test_GRID_log[k]))
+    
+    
+    
+    # Fitting Random Forest Regression to the dataset
+    
+    rand_forest = RandomForestRegressor(n_estimators = 290, max_depth=12, min_samples_split= 15,min_samples_leaf=2, max_features="auto",bootstrap=True, random_state = 0, n_jobs= -1)
+    rand_forest.fit(Xc_train_GRID_log, yc_train_GRID_log)
+    #Error calculation for the Random Forest model
+    misclass_rate_test_RF = sum(rand_forest.predict(Xc_test_GRID_log) != yc_test_GRID_log) / float(len(rand_forest.predict(Xc_test_GRID_log)))
+    misclass_rate_train_RF = sum(rand_forest.predict(Xc_train_GRID_log) != yc_train_GRID_log) / float(len(rand_forest.predict(Xc_train_GRID_log)))
+    Error_test_RF[k], Error_train_RF[k] = misclass_rate_test_RF, misclass_rate_train_RF
+    
     k+=1
+    
+print("For baseline Logistisc Regression: ")
+print('Train Error Accuracy({0}Kforld): {1}\n'.format(K,Error_train_base.T.mean(1)))
+print('Test Error Accuracy({0}Kforld): {1}\n'.format(K,Error_test_base.T.mean(1)))   
+    
+print("For optimized Logistisc Regression: ")
 print('Train Error Accuracy({0}Kforld): {1}\n'.format(K,Error_train_GRID_log.T.mean(1)))
 print('Test Error Accuracy({0}Kforld): {1}\n'.format(K,Error_test_GRID_log.T.mean(1)))
+
+print("For Random Forests classification: ")
+print('Train Error Accuracy({0}Kforld): {1}\n'.format(K,Error_train_RF.T.mean(1)))
+print('Test Error Accuracy({0}Kforld): {1}\n'.format(K,Error_test_RF.T.mean(1)))
 #mean_train = Error_train_GRID_log.mean(1)
 #mean_test = Error_test_GRID_log.mean(1)
 C=[0.00000001,0.0000001,0.000001,0.00001,0.0001,0.001,0.01,0.1,1,10]
 import matplotlib.pyplot as plt
+plt.semilogx(C, Error_train_base*100)
+plt.semilogx(C, Error_test_base*100)
 plt.semilogx(C, Error_train_GRID_log*100)
 plt.semilogx(C, Error_test_GRID_log*100)
+plt.semilogx(C, Error_train_RF*100)
+plt.semilogx(C, Error_test_RF*100)
 xlabel('Regularization factor')
 ylabel('Error (%), CV K={0}'.format(K))
 legend(['Error_train','Error_test'],loc=0)
@@ -393,22 +433,30 @@ plt.show()
 
 #Nested CV of the tested models
 
-
+from sklearn.ensemble import RandomForestClassifier 
 from sklearn.linear_model import LogisticRegression
 from sklearn import model_selection
+
 # K-fold crossvalidation
 K = 10
 CV = model_selection.KFold(n_splits=K,shuffle=True)
 
 lc = np.arange(0.025,1.25,0.125)
+tc = np.arange(10,500,50)
+
+
 
 # Initialize variables
 Error_train_log = np.empty((len(lc),K))
 Error_test_log = np.empty((len(lc),K))
 Error_train_log_intercept = np.empty((len(lc),K))
 Error_test_log_intercept = np.empty((len(lc),K))
+Error_train = np.empty((len(tc),K))
+Error_test = np.empty((len(tc),K))
+
 ratio=0.1
 j=0
+k=0
 for train_index, test_index in CV.split(Xc):
     print('Computing logistic CV fold: {0}/{1}..'.format(j+1,K))
 
@@ -435,6 +483,18 @@ for train_index, test_index in CV.split(Xc):
         misclass_rate_test = np.square(yc_test_KFold_log-log_test_pred).sum()/yc_test_KFold_log.shape[0]
         misclass_rate_train = np.square(yc_train_KFold_log-log_train_pred).sum()/yc_train_KFold_log.shape[0]
         Error_test_log[a,j], Error_train_log[a,j] = misclass_rate_test, misclass_rate_train
+    print('Computing RF CV fold: {0}/{1}..'.format(k+1,K))    
+    for i, t in enumerate(tc):
+        # Fitting Random Forest model to the Training set
+        randc_forest = RandomForestClassifier(n_estimators = t, criterion = 'entropy', max_depth=3, min_samples_leaf=i+1, min_samples_split=i+2, max_features="auto", bootstrap=False, random_state = 0, n_jobs= -1)
+        randc_forest.fit(Xc_train_KFold_log, yc_train_KFold_log.ravel())  
+
+        rfc_test_pred = randc_forest.predict(Xc_test_KFold_log)
+        rfc_train_pred = randc_forest.predict(Xc_train_KFold_log)
+        misclass_rate_test = np.square(yc_test_KFold_log-rfc_test_pred).sum()/yc_test_KFold_log.shape[0]
+        misclass_rate_train = np.square(yc_train_KFold_log-rfc_train_pred).sum()/yc_train_KFold_log.shape[0]
+        Error_test[i,k], Error_train[i,k] = misclass_rate_test, misclass_rate_train
+    k+=1
     j+=1
     ratio+=0.1
 #penalty='elasticnet', , solver='saga',l1_ratio=ratio
@@ -445,49 +505,15 @@ ylabel('Test error across CV folds, K={0})'.format(K))
 f = figure()
 plot(lc, np.sqrt(Error_train_log.mean(1)))
 plot(lc, np.sqrt(Error_test_log.mean(1)))
+xlabel('Log Complexity: Regularization Factor')
+ylabel('Error (RMSE, CV K={0})'.format(K))
+legend(['Error_train','Error_test'])
+f = figure()
 plot(lc, np.sqrt(Error_train_log_intercept.mean(1)))
 plot(lc, np.sqrt(Error_test_log_intercept.mean(1)))
 xlabel('Log Complexity: Regularization Factor')
 ylabel('Error (RMSE, CV K={0})'.format(K))
 legend(['Error_train','Error_test'])
-    
-show() 
- 
-
-
-#RANDOM FORESTS MODEL
-
- 
-
-from sklearn.ensemble import RandomForestClassifier    
-# K-fold crossvalidation
-K = 10
-CV = model_selection.KFold(n_splits=K,shuffle=True)
-
-tc = np.arange(10,500,50)
-
-# Initialize variables
-Error_train = np.empty((len(tc),K))
-Error_test = np.empty((len(tc),K))
-
-k=0
-for train_index, test_index in CV.split(Xc):
-    print('Computing RF CV fold: {0}/{1}..'.format(k+1,K))
-
-    # extract training and test set for current CV fold
-    Xc_train_KFold, yc_train_KFold = Xc[train_index,:], yc[train_index]
-    Xc_test_KFold, yc_test_KFold = Xc[test_index,:], yc[test_index]
-    for i, t in enumerate(tc):
-        randc_forest = RandomForestClassifier(n_estimators = t, criterion = 'entropy', max_depth=3, min_samples_leaf=i+1, min_samples_split=i+2, max_features="auto", bootstrap=False, random_state = 0, n_jobs= -1)
-        randc_forest.fit(Xc_train_KFold, yc_train_KFold.ravel())  
-
-        rfc_test_pred = randc_forest.predict(Xc_test_KFold)
-        rfc_train_pred = randc_forest.predict(Xc_train_KFold)
-        misclass_rate_test = np.square(yc_test_KFold-rfc_test_pred).sum()/yc_test_KFold.shape[0]
-        misclass_rate_train = np.square(yc_train_KFold-rfc_train_pred).sum()/yc_train_KFold.shape[0]
-        Error_test[i,k], Error_train[i,k] = misclass_rate_test, misclass_rate_train
-    k+=1
-
 f = figure()
 boxplot(Error_test.T)
 xlabel('RF Complexity: Estimators-min_samples leaf+Split')
@@ -498,8 +524,11 @@ plot(tc, np.sqrt(Error_test.mean(1)))
 xlabel('RF Complexity: Estimators-min_samples leaf+Split')
 ylabel('Error (RMSE, CV K={0})'.format(K))
 legend(['Error_train','Error_test'])
-    
-show()
+        
+show() 
+ 
+
+
 
 
 import matplotlib.pyplot as plt
@@ -660,6 +689,61 @@ rfc_accuracies = cross_val_score(estimator = randc_forest, X = Xc_train, y = yc_
 #-----------------------------------------------------------
 #MODEL SELECTION
 
+#RANDOM FORESTS MODEL
+
+#Regression
+
+
+# Fitting Random Forest Regression to the dataset
+from sklearn.ensemble import RandomForestRegressor
+rand_forest = RandomForestRegressor(n_estimators = 290, max_depth=12, min_samples_split= 15,min_samples_leaf=2, max_features="auto",bootstrap=True, random_state = 0, n_jobs= -1)
+rand_forest.fit(Xr_train, yr_train)
+
+
+#Classification
+ 
+
+from sklearn.ensemble import RandomForestClassifier    
+# K-fold crossvalidation
+K = 10
+CV = model_selection.KFold(n_splits=K,shuffle=True)
+
+tc = np.arange(10,500,50)
+
+# Initialize variables
+Error_train = np.empty((len(tc),K))
+Error_test = np.empty((len(tc),K))
+
+k=0
+for train_index, test_index in CV.split(Xc):
+    print('Computing RF CV fold: {0}/{1}..'.format(k+1,K))
+
+    # extract training and test set for current CV fold
+    Xc_train_KFold, yc_train_KFold = Xc[train_index,:], yc[train_index]
+    Xc_test_KFold, yc_test_KFold = Xc[test_index,:], yc[test_index]
+    for i, t in enumerate(tc):
+        randc_forest = RandomForestClassifier(n_estimators = t, criterion = 'entropy', max_depth=3, min_samples_leaf=i+1, min_samples_split=i+2, max_features="auto", bootstrap=False, random_state = 0, n_jobs= -1)
+        randc_forest.fit(Xc_train_KFold, yc_train_KFold.ravel())  
+
+        rfc_test_pred = randc_forest.predict(Xc_test_KFold)
+        rfc_train_pred = randc_forest.predict(Xc_train_KFold)
+        misclass_rate_test = np.square(yc_test_KFold-rfc_test_pred).sum()/yc_test_KFold.shape[0]
+        misclass_rate_train = np.square(yc_train_KFold-rfc_train_pred).sum()/yc_train_KFold.shape[0]
+        Error_test[i,k], Error_train[i,k] = misclass_rate_test, misclass_rate_train
+    k+=1
+
+f = figure()
+boxplot(Error_test.T)
+xlabel('RF Complexity: Estimators-min_samples leaf+Split')
+ylabel('Test error across CV folds, K={0})'.format(K))
+f = figure()
+plot(tc, np.sqrt(Error_train.mean(1)))
+plot(tc, np.sqrt(Error_test.mean(1)))
+xlabel('RF Complexity: Estimators-min_samples leaf+Split')
+ylabel('Error (RMSE, CV K={0})'.format(K))
+legend(['Error_train','Error_test'])
+    
+show()
 
 
 
