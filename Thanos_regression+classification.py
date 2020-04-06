@@ -160,7 +160,7 @@ plot(lc, np.sqrt(Error_test_lin.mean(1)))
 xlabel('Complexity: Regularization Factor')
 ylabel('Error (RMSE, CV K={0})'.format(K))
 legend(['Error_train','Error_test'])
-    
+title('Multiple Linear Regression')    
 show() 
  
 
@@ -263,7 +263,7 @@ bmplot(regression_attribute_names, range(1,Features.shape[1]+1), -Features)
 clim(-1.5,0)
 xlabel('Crossvalidation fold')
 ylabel('Attribute')
-
+title('Regression')
 
 # Inspect selected feature coefficients effect on the entire dataset and
 # plot the fitted model residual error as function of each attribute to
@@ -286,7 +286,7 @@ else:
        plot(Xr[:,ff[i]],residual,'.')
        xlabel(regression_attribute_names[ff[i]])
        ylabel('residual error')
-    
+       title('Feature selection for Regression')
     
 show()
 
@@ -424,7 +424,7 @@ plt.semilogx(C, Error_test_RF.mean(1)*100)
 xlabel('Regularization factor')
 ylabel('Error (%), CV K={0}'.format(K))
 legend(['Error_train','Error_test'],loc=0)
-
+plt.title('Hyper-parameter tweaking for logistic regression')
 
 plt.show()
 
@@ -458,15 +458,15 @@ Error_test_RF = np.empty((len(tc),K))
 j=0
 k=0
 for train_index, test_index in CV.split(Xc):
-    
+     
     
     
     # extract training and test set for current CV fold
     Xc_train_KFold_log, yc_train_KFold_log = Xc[train_index,:], yc[train_index]
     Xc_test_KFold_log, yc_test_KFold_log = Xc[test_index,:], yc[test_index]
-    print('Computing RF CV fold: {0}/{1}..'.format(k+1,K))    
-    for i, t in enumerate(tc):
         
+    for i, t in enumerate(tc):
+        print('Computing RF CV fold: {0}/{1}..'.format(k+1,K))
         # Fitting Random Forest model to the Training set
         randc_forestCV = RandomForestClassifier(n_estimators = t, criterion = 'entropy', max_depth=3, min_samples_leaf=i+1, min_samples_split=i+2, max_features="auto", bootstrap=False, random_state = 0, n_jobs= -1)
         randc_forestCV.fit(Xc_train_KFold_log, yc_train_KFold_log.ravel())  
@@ -477,9 +477,9 @@ for train_index, test_index in CV.split(Xc):
         misclass_rate_trainRF = sum(rfc_train_pred != yc_train_KFold_log) / float(len(rfc_train_pred))
         Error_test_RF[i,k], Error_train_RF[i,k] = misclass_rate_testRF, misclass_rate_trainRF
         
-    print('Computing logistic CV fold: {0}/{1}..'.format(j+1,K))
+   
     for a, c in enumerate(lc):
-        
+        print('Computing logistic CV fold: {0}/{1}..'.format(j+1,K))
         # Fitting the baseline Logistic Regression model to the Training set
         log_classifier_intercept = LogisticRegression(fit_intercept=True,  n_jobs=-1, random_state = 0)
         log_classifier_intercept.fit(Xc_train_KFold_log, yc_train_KFold_log.ravel())
@@ -518,28 +518,33 @@ f = figure()
 boxplot(Error_test_log.T)
 xlabel('Log Complexity: Regularization Factor')
 ylabel('Test error across CV folds, K={0})'.format(K))
+title('Logistic Regression with nested CV')
 f = figure()
 plot(lc, Error_train_log.mean(1)*100)
 plot(lc, Error_test_log.mean(1)*100)
 xlabel('Log Complexity: Regularization Factor')
 ylabel('Error (CV K={0})'.format(K))
 legend(['Error_train','Error_test'])
+title('Logistic Regression with nested CV')
 f = figure()
 plot(lc,Error_train_log_intercept.mean(1)*100)
 plot(lc, Error_test_log_intercept.mean(1)*100)
 xlabel(' Baseline Log Complexity: Regularization Factor')
 ylabel('Error (CV K={0})'.format(K))
 legend(['Error_train','Error_test'])
+title('')
 f = figure()
 boxplot(Error_test_RF.T)
 xlabel('RF Complexity: Estimators-min_samples leaf+Split')
 ylabel('Test error across CV folds, K={0})'.format(K))
+title('Random Forests with nested CV')
 f = figure()
 plot(tc, Error_train_RF.mean(1)*100)
 plot(tc, Error_test_RF.mean(1)*100)
 xlabel('RF Complexity: Estimators-min_samples leaf+Split')
 ylabel('Error (CV K={0})'.format(K))
 legend(['Error_train','Error_test'])
+title('Random Forests with nested CV')
         
 show() 
  
@@ -552,6 +557,9 @@ plt.plot(tc,Error_test_log_intercept.mean(1)*100, marker='', color='olive', line
 xlabel('Complexity')
 ylabel('Error')
 plt.legend(loc=0)
+title('Classification model comparison')
+
+
 
 plt.show()
 
@@ -690,7 +698,7 @@ bmplot(binary_attribute_names, range(1,Features.shape[1]+1), -Features)
 clim(-1.5,0)
 xlabel('Crossvalidation fold')
 ylabel('Attribute')
-
+title('Classification')
 show()
 
 # Inspect selected feature coefficients effect on the entire dataset and
