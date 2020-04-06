@@ -61,6 +61,7 @@ Xc = scaler_binary.transform(binary_heart_data)   # What about y?s
 # Non-standardized data
 Xns = binary_heart_data.to_numpy()
 regression_attribute_names=regression_heart_data.columns
+binary_attribute_names = binary_heart_data.columns
 
 scaler_reg = StandardScaler()
 scaler_reg.fit(regression_heart_data)
@@ -118,7 +119,7 @@ Error_test_lin = np.empty((len(lc),K))
 
 w=0
 for train_index, test_index in CV.split(Xr):
-    print('Computing logistic CV fold: {0}/{1}..'.format(w+1,K))
+    print('Computing linear CV fold: {0}/{1}..'.format(w+1,K))
 
     # extract training and test set for current CV fold
     Xr_train_KFold_lin, yr_train_KFold_lin = Xr[train_index,:], yr[train_index]
@@ -177,7 +178,7 @@ show()
 
 K = 10
 CV = model_selection.KFold(n_splits=K,shuffle=True)
-
+from sklearn.linear_model import LinearRegression
 # Initialize variables
 Features = np.zeros((M,K))
 Error_train = np.empty((K,1))
@@ -204,7 +205,7 @@ for train_index, test_index in CV.split(Xr):
 
     # Compute squared error with all features selected (no feature selection)
     # Fitting Linear Regression to the dataset
-    from sklearn.linear_model import LinearRegression
+    
     lin_reg = LinearRegression(fit_intercept=True,n_jobs=-1)
     lin_reg.fit(Xr_train, yr_train)
     Error_train[k] = np.square(yr_train-lin_reg.predict(Xr_train)).sum()/yr_train.shape[0]
@@ -237,8 +238,8 @@ for train_index, test_index in CV.split(Xr):
 
 
     print('Cross validation fold {0}/{1}'.format(k+1,K))
-    print('Train indices: {0}'.format(train_index))
-    print('Test indices: {0}'.format(test_index))
+    #print('Train indices: {0}'.format(train_index))
+    #print('Test indices: {0}'.format(test_index))
     print('Features no: {0}\n'.format(selected_features.size))
 
     k+=1
@@ -246,13 +247,13 @@ for train_index, test_index in CV.split(Xr):
 # Display results
 print('\n')
 print('Linear regression without feature selection:\n')
-print('- Training error: {0}'.format(Error_train.mean()))
-print('- Test error:     {0}'.format(Error_test.mean()))
+print('- RMSE Training error: {0}'.format(np.sqrt(Error_train.mean(1))))
+print('- RMSE Test error:     {0}'.format(np.sqrt(Error_test.mean(1))))
 print('- R^2 train:     {0}'.format((Error_train_nofeatures.sum()-Error_train.sum())/Error_train_nofeatures.sum()))
 print('- R^2 test:     {0}'.format((Error_test_nofeatures.sum()-Error_test.sum())/Error_test_nofeatures.sum()))
 print('Linear regression with feature selection:\n')
-print('- Training error: {0}'.format(Error_train_fs.mean()))
-print('- Test error:     {0}'.format(Error_test_fs.mean()))
+print('- RMSE Training error: {0}'.format(np.sqrt(Error_train_fs.mean(1))))
+print('- RMSE Test error:     {0}'.format(np.sqrt(Error_test_fs.mean(1))))
 print('- R^2 train:     {0}'.format((Error_train_nofeatures.sum()-Error_train_fs.sum())/Error_train_nofeatures.sum()))
 print('- R^2 test:     {0}'.format((Error_test_nofeatures.sum()-Error_test_fs.sum())/Error_test_nofeatures.sum()))
 
@@ -388,13 +389,13 @@ for train_index, test_index in CV.split(Xr):
     
     
     
-    # Fitting Random Forest Regression to the dataset
+    # Fitting Random Forest  to the dataset
     
-    rand_forest = RandomForestRegressor(n_estimators = 290, max_depth=12, min_samples_split= 15,min_samples_leaf=2, max_features="auto",bootstrap=True, random_state = 0, n_jobs= -1)
-    rand_forest.fit(Xc_train_GRID_log, yc_train_GRID_log)
+    rand_forest_simple = RandomForestRegressor(n_estimators = 290, max_depth=4, min_samples_split= 9,min_samples_leaf=2, max_features="auto",bootstrap=True, random_state = 0, n_jobs= -1)
+    rand_forest_simple.fit(Xc_train_GRID_log, yc_train_GRID_log)
     #Error calculation for the Random Forest model
-    misclass_rate_test_RF = sum(rand_forest.predict(Xc_test_GRID_log) != yc_test_GRID_log) / float(len(rand_forest.predict(Xc_test_GRID_log)))
-    misclass_rate_train_RF = sum(rand_forest.predict(Xc_train_GRID_log) != yc_train_GRID_log) / float(len(rand_forest.predict(Xc_train_GRID_log)))
+    misclass_rate_test_RF = sum(rand_forest_simple.predict(Xc_test_GRID_log) != yc_test_GRID_log) / float(len(rand_forest_simple.predict(Xc_test_GRID_log)))
+    misclass_rate_train_RF = sum(rand_forest_simple.predict(Xc_train_GRID_log) != yc_train_GRID_log) / float(len(rand_forest_simple.predict(Xc_train_GRID_log)))
     Error_test_RF[k], Error_train_RF[k] = misclass_rate_test_RF, misclass_rate_train_RF
     
     k+=1
@@ -418,8 +419,8 @@ plt.semilogx(C, Error_train_base*100)
 plt.semilogx(C, Error_test_base*100)
 plt.semilogx(C, Error_train_GRID_log*100)
 plt.semilogx(C, Error_test_GRID_log*100)
-plt.semilogx(C, Error_train_RF*100)
-plt.semilogx(C, Error_test_RF*100)
+plt.semilogx(C, Error_train_RF.mean(1)*100)
+plt.semilogx(C, Error_test_RF.mean(1)*100)
 xlabel('Regularization factor')
 ylabel('Error (%), CV K={0}'.format(K))
 legend(['Error_train','Error_test'],loc=0)
@@ -451,95 +452,277 @@ Error_train_log = np.empty((len(lc),K))
 Error_test_log = np.empty((len(lc),K))
 Error_train_log_intercept = np.empty((len(lc),K))
 Error_test_log_intercept = np.empty((len(lc),K))
-Error_train = np.empty((len(tc),K))
-Error_test = np.empty((len(tc),K))
+Error_train_RF = np.empty((len(tc),K))
+Error_test_RF = np.empty((len(tc),K))
 
-ratio=0.1
 j=0
 k=0
 for train_index, test_index in CV.split(Xc):
-    print('Computing logistic CV fold: {0}/{1}..'.format(j+1,K))
-
+    
+    
+    
     # extract training and test set for current CV fold
     Xc_train_KFold_log, yc_train_KFold_log = Xc[train_index,:], yc[train_index]
     Xc_test_KFold_log, yc_test_KFold_log = Xc[test_index,:], yc[test_index]
+    print('Computing RF CV fold: {0}/{1}..'.format(k+1,K))    
+    for i, t in enumerate(tc):
+        
+        # Fitting Random Forest model to the Training set
+        randc_forestCV = RandomForestClassifier(n_estimators = t, criterion = 'entropy', max_depth=3, min_samples_leaf=i+1, min_samples_split=i+2, max_features="auto", bootstrap=False, random_state = 0, n_jobs= -1)
+        randc_forestCV.fit(Xc_train_KFold_log, yc_train_KFold_log.ravel())  
+
+        rfc_test_pred = randc_forestCV.predict(Xc_test_KFold_log)
+        rfc_train_pred = randc_forestCV.predict(Xc_train_KFold_log)
+        misclass_rate_testRF = sum(rfc_test_pred != yc_test_KFold_log) / float(len(rfc_test_pred))
+        misclass_rate_trainRF = sum(rfc_train_pred != yc_train_KFold_log) / float(len(rfc_train_pred))
+        Error_test_RF[i,k], Error_train_RF[i,k] = misclass_rate_testRF, misclass_rate_trainRF
+        
+    print('Computing logistic CV fold: {0}/{1}..'.format(j+1,K))
     for a, c in enumerate(lc):
         
         # Fitting the baseline Logistic Regression model to the Training set
         log_classifier_intercept = LogisticRegression(fit_intercept=True,  n_jobs=-1, random_state = 0)
         log_classifier_intercept.fit(Xc_train_KFold_log, yc_train_KFold_log.ravel())
+        
         log_intercept_test_pred = log_classifier_intercept.predict(Xc_test_KFold_log)
         log_intercept_train_pred = log_classifier_intercept.predict(Xc_train_KFold_log)
-        misclass_rate_test_intercept = np.square(yc_test_KFold_log-log_intercept_test_pred).sum()/yc_test_KFold_log.shape[0]
-        misclass_rate_train_intercept = np.square(yc_train_KFold_log-log_intercept_train_pred).sum()/yc_train_KFold_log.shape[0]
+        misclass_rate_test_intercept = sum(log_intercept_test_pred != yc_test_KFold_log) / float(len(log_intercept_test_pred))
+        misclass_rate_train_intercept = sum(log_intercept_train_pred != yc_train_KFold_log) / float(len(log_intercept_train_pred))
         Error_test_log_intercept[a,j], Error_train_log_intercept[a,j] = misclass_rate_test_intercept, misclass_rate_train_intercept
         
+    
         
+        # Applying LDA
+        lda = LDA(n_components = 2)
+        Xc_train_LDA = lda.fit_transform(Xc_train_KFold_log, yc_train_KFold_log)
+        Xc_test_LDA = lda.transform(Xc_test_KFold_log)
+    
         # Fitting Logistic Regression model to the Training set
         log_classifier = LogisticRegression( C=c, n_jobs=-1, random_state = 0)
-        log_classifier.fit(Xc_train_KFold_log, yc_train_KFold_log.ravel())
-        log_test_pred = log_classifier.predict(Xc_test_KFold_log)
-        log_train_pred = log_classifier.predict(Xc_train_KFold_log)
-        misclass_rate_test = np.square(yc_test_KFold_log-log_test_pred).sum()/yc_test_KFold_log.shape[0]
-        misclass_rate_train = np.square(yc_train_KFold_log-log_train_pred).sum()/yc_train_KFold_log.shape[0]
+        log_classifier.fit(Xc_train_LDA, yc_train_KFold_log.ravel())
+        
+        log_test_pred = log_classifier.predict(Xc_test_LDA)
+        log_train_pred = log_classifier.predict(Xc_train_LDA)
+        
+        misclass_rate_test = sum(log_test_pred != yc_test_KFold_log) / float(len(log_test_pred))
+        misclass_rate_train = sum(log_train_pred != yc_train_KFold_log) / float(len(log_train_pred))
         Error_test_log[a,j], Error_train_log[a,j] = misclass_rate_test, misclass_rate_train
-    print('Computing RF CV fold: {0}/{1}..'.format(k+1,K))    
-    for i, t in enumerate(tc):
-        # Fitting Random Forest model to the Training set
-        randc_forest = RandomForestClassifier(n_estimators = t, criterion = 'entropy', max_depth=3, min_samples_leaf=i+1, min_samples_split=i+2, max_features="auto", bootstrap=False, random_state = 0, n_jobs= -1)
-        randc_forest.fit(Xc_train_KFold_log, yc_train_KFold_log.ravel())  
-
-        rfc_test_pred = randc_forest.predict(Xc_test_KFold_log)
-        rfc_train_pred = randc_forest.predict(Xc_train_KFold_log)
-        misclass_rate_test = np.square(yc_test_KFold_log-rfc_test_pred).sum()/yc_test_KFold_log.shape[0]
-        misclass_rate_train = np.square(yc_train_KFold_log-rfc_train_pred).sum()/yc_train_KFold_log.shape[0]
-        Error_test[i,k], Error_train[i,k] = misclass_rate_test, misclass_rate_train
+        
+    
+        
     k+=1
     j+=1
-    ratio+=0.1
+
 #penalty='elasticnet', , solver='saga',l1_ratio=ratio
 f = figure()
 boxplot(Error_test_log.T)
 xlabel('Log Complexity: Regularization Factor')
 ylabel('Test error across CV folds, K={0})'.format(K))
 f = figure()
-plot(lc, np.sqrt(Error_train_log.mean(1)))
-plot(lc, np.sqrt(Error_test_log.mean(1)))
+plot(lc, Error_train_log.mean(1)*100)
+plot(lc, Error_test_log.mean(1)*100)
 xlabel('Log Complexity: Regularization Factor')
-ylabel('Error (RMSE, CV K={0})'.format(K))
+ylabel('Error (CV K={0})'.format(K))
 legend(['Error_train','Error_test'])
 f = figure()
-plot(lc, np.sqrt(Error_train_log_intercept.mean(1)))
-plot(lc, np.sqrt(Error_test_log_intercept.mean(1)))
-xlabel('Log Complexity: Regularization Factor')
-ylabel('Error (RMSE, CV K={0})'.format(K))
+plot(lc,Error_train_log_intercept.mean(1)*100)
+plot(lc, Error_test_log_intercept.mean(1)*100)
+xlabel(' Baseline Log Complexity: Regularization Factor')
+ylabel('Error (CV K={0})'.format(K))
 legend(['Error_train','Error_test'])
 f = figure()
-boxplot(Error_test.T)
+boxplot(Error_test_RF.T)
 xlabel('RF Complexity: Estimators-min_samples leaf+Split')
 ylabel('Test error across CV folds, K={0})'.format(K))
 f = figure()
-plot(tc, np.sqrt(Error_train.mean(1)))
-plot(tc, np.sqrt(Error_test.mean(1)))
+plot(tc, Error_train_RF.mean(1)*100)
+plot(tc, Error_test_RF.mean(1)*100)
 xlabel('RF Complexity: Estimators-min_samples leaf+Split')
-ylabel('Error (RMSE, CV K={0})'.format(K))
+ylabel('Error (CV K={0})'.format(K))
 legend(['Error_train','Error_test'])
         
 show() 
  
 
 
-
-
 import matplotlib.pyplot as plt
-plt.plot(tc,np.sqrt(Error_test.mean(1)), marker='o', markerfacecolor='blue', markersize=7, color='skyblue', linewidth=3,label='Random forests' )
-plt.plot(tc, np.sqrt(Error_test_log.mean(1)), marker='', color='olive', linewidth=3, label= 'Logistic Regression')
-plt.plot(tc,np.sqrt(Error_test_log_intercept.mean(1)), marker='', color='olive', linewidth=3, linestyle='dashed', label="Baseline")
+plt.plot(tc,Error_test_RF.mean(1)*100, marker='o', markerfacecolor='blue', markersize=7, color='skyblue', linewidth=3,label='Random forests' )
+plt.plot(tc, Error_test_log.mean(1)*100, marker='', color='olive', linewidth=3, label= 'Logistic Regression')
+plt.plot(tc,Error_test_log_intercept.mean(1)*100, marker='', color='olive', linewidth=3, linestyle='dashed', label="Baseline")
 xlabel('Complexity')
-ylabel('RMSE')
+ylabel('Error')
 plt.legend(loc=0)
 
 plt.show()
+
+
+#---------------------------------------------------------------------------------
+
+#TAKE THE BEST MODELS FROM ABOVE AND FIND THE BEST COMBINATIONS OF FEATURES BELOW
+
+K = 10
+CV = model_selection.KFold(n_splits=K,shuffle=True)
+from sklearn.linear_model import LinearRegression
+# Initialize variables
+Features = np.zeros((M,K))
+Error_train_logFS = np.empty((K,1))
+Error_test_logFS = np.empty((K,1))
+Error_train_rf = np.empty((K,1))
+Error_test_rf = np.empty((K,1))
+Error_train_fsLDA= np.empty((K,1))
+Error_test_fsLDA= np.empty((K,1))
+
+k=0
+# Outer loop
+for train_index, test_index in CV.split(Xc):
+    
+    # extract training and test set for current CV fold
+    Xc_train = Xr[train_index,:]
+    yc_train = yr[train_index]
+    Xc_test = Xr[test_index,:]
+    yc_test = yr[test_index]
+    internal_cross_validation = 10
+    
+   
+    # Compute squared error with feature subset selection
+    textout = ''
+    selected_features, features_record, loss_record = feature_selector_lr(Xc_train, yc_train, internal_cross_validation,display=textout)
+    #Inner loop
+    Features[selected_features,k] = 1
+    # .. alternatively you could use module sklearn.feature_selection
+    if len(selected_features) is 0:
+        print('No features were selected, i.e. the data (X) in the fold cannot describe the outcomes (y).' )
+    else:
+        
+        
+         # Fitting Random Forest model to the Training set
+        randc_forestFS = RandomForestClassifier(n_estimators = 400, criterion = 'entropy', max_depth=3, min_samples_leaf=4, min_samples_split=9, max_features="auto", bootstrap=False, random_state = 0, n_jobs= -1)
+        randc_forestFS.fit(Xc_train[:,selected_features], yc_train)  
+
+        rfc_test_pred_fs = randc_forestFS.predict(Xc_test[:,selected_features])
+        rfc_train_pred_fs = randc_forestFS.predict(Xc_train[:,selected_features])
+        
+        misclass_rate_test_rf = sum(rfc_test_pred_fs != yc_test) / float(len(rfc_test_pred_fs))
+        misclass_rate_train_rf = sum(rfc_train_pred_fs != yc_train) / float(len(rfc_train_pred_fs))
+        Error_test_rf[k], Error_train_rf[k] = misclass_rate_test_rf, misclass_rate_train_rf
+        
+        
+
+        
+        #Feature selection for log reg
+        log_classifier = LogisticRegression(C=1,  n_jobs=-1, random_state = 0)
+        log_classifier.fit(Xc_train[:,selected_features], yc_train)
+        
+        log_test_pred = log_classifier.predict(Xc_test[:,selected_features])
+        log_train_pred = log_classifier.predict(Xc_train[:,selected_features])
+        
+        
+        misclass_rate_test = sum(log_test_pred != yc_test) / float(len(log_test_pred))
+        misclass_rate_train= sum(log_train_pred != yc_train) / float(len(log_train_pred))
+        Error_test_logFS[k], Error_train_logFS[k] = misclass_rate_test, misclass_rate_train
+        
+        
+      
+        # Applying LDA
+        lda = LDA(n_components = 2)
+        Xc_train_LDA = lda.fit_transform(Xc_train[:,selected_features], yc_train)
+        Xc_test_LDA = lda.transform(Xc_test[:,selected_features])
+        #Retraining of the Logistic Regression model with selected features and LDA analysis on the selected features
+        log_classifier_fsLDA = LogisticRegression(fit_intercept=True,  n_jobs=-1, random_state = 0)
+        log_classifier_fsLDA.fit(Xc_train_LDA, yc_train)
+        
+        log_test_pred_fsLDA = log_classifier_fsLDA.predict(Xc_test_LDA)
+        log_train_pred_fsLDA = log_classifier_fsLDA.predict(Xc_train_LDA)
+        
+        
+        misclass_rate_test_fsLDA = sum(log_test_pred != yc_test) / float(len(log_test_pred))
+        misclass_rate_train_fsLDA= sum(log_train_pred != yc_train) / float(len(log_train_pred))
+        Error_test_fsLDA[k], Error_train_fsLDA[k] = misclass_rate_test_fsLDA, misclass_rate_train_fsLDA
+        
+        
+        figure(k)
+        subplot(1,2,1)
+        plot(range(1,len(loss_record)), loss_record[1:])
+        xlabel('Iteration')
+        ylabel('Squared error (crossvalidation)')    
+        
+        subplot(1,3,3)
+        bmplot(binary_attribute_names, range(1,features_record.shape[1]), -features_record[:,1:])
+        clim(-1.5,0)
+        xlabel('Iteration')
+
+
+    print('Cross validation fold {0}/{1}'.format(k+1,K))
+    #print('Train indices: {0}'.format(train_index))
+    #print('Test indices: {0}'.format(test_index))
+    print('Features no: {0}\n'.format(selected_features.size))
+
+    k+=1
+
+# Display results
+print('\n')
+print('Baseline regression without feature selection:\n')
+print('- Training error: {0}'.format(Error_train_log_intercept.mean()))
+print('- Test error:     {0}'.format(Error_test_log_intercept.mean()))
+
+
+print('Logistic Regression without feature selection:\n')
+print('- Training error: {0}'.format(Error_train_log.mean()))
+print('- Test error:     {0}'.format(Error_test_log.mean()))
+
+
+print('Logistic Regression with feature selection:\n')
+print('- Training error: {0}'.format(Error_train_logFS.mean()))
+print('- Test error:     {0}'.format(Error_test_logFS.mean()))
+
+
+print('Random Forests without feature selection:\n')
+print('- Training error: {0}'.format(Error_train_RF.mean()))
+print('- Test error:     {0}'.format(Error_test_RF.mean()))
+
+print('Random Forests with feature selection:\n')
+print('- Training error: {0}'.format(Error_train_rf.mean()))
+print('- Test error:     {0}'.format(Error_test_rf.mean()))
+
+figure(k)
+subplot(1,3,2)
+bmplot(binary_attribute_names, range(1,Features.shape[1]+1), -Features)
+clim(-1.5,0)
+xlabel('Crossvalidation fold')
+ylabel('Attribute')
+
+show()
+
+# Inspect selected feature coefficients effect on the entire dataset and
+# plot the fitted model residual error as function of each attribute to
+# inspect for systematic structure in the residual
+'''
+f=2 # cross-validation fold to inspect
+ff=Features[:,f-1].nonzero()[0]
+if len(ff) is 0:
+    print('\nNo features were selected, i.e. the data (X) in the fold cannot describe the outcomes (y).' )
+else:
+    lin_reg = LinearRegression(fit_intercept=True,n_jobs=-1)
+    lin_reg.fit(Xr_train[:,ff], yr_train)
+    lin_reg_pred= lin_reg.predict(Xr[:,ff])
+    residual=yr-lin_reg_pred
+    
+    figure(k+1, figsize=(12,6))
+    title('Residual error vs. Attributes for features selected in cross-validation fold {0}'.format(f))
+    for i in range(0,len(ff)):
+       subplot(2,np.ceil(len(ff)/2.0),i+1)
+       plot(Xr[:,ff[i]],residual,'.')
+       xlabel(regression_attribute_names[ff[i]])
+       ylabel('residual error')
+    
+    
+show()
+
+
+'''
+
+
+
 
 
 
