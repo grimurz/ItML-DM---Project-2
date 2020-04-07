@@ -5,16 +5,15 @@ import numpy as np
 import matplotlib.pyplot as plt
 import sklearn.linear_model as lm
 from sklearn.linear_model import Ridge
-from sklearn.model_selection import train_test_split
+# from sklearn.model_selection import train_test_split
 from sklearn import model_selection
 from sklearn.preprocessing import PolynomialFeatures
 from sklearn.pipeline import make_pipeline
-from sklearn.feature_selection import SelectKBest, f_regression, mutual_info_regression
+from sklearn.feature_selection import SelectKBest, f_regression
 
 import torch
-from toolbox_02450 import train_neural_net, draw_neural_net
+from toolbox_02450 import train_neural_net
 
-# from matplotlib.pyplot import figure, plot, xlabel, ylabel, legend, subplot, hist, show
 
 X0 = SelectKBest(f_regression, k=7).fit_transform(X_r, y_r)
 
@@ -55,7 +54,7 @@ for train_index, test_index in CV.split(X1):
 
     k+=1
 
-print('Linear regression MSE:', np.round(np.mean(mse),4))
+# print('Linear regression MSE:', np.round(np.mean(mse),4))
 print('Linear regression RMSE:', np.round(np.sqrt(np.mean(mse)),4),'\n')
 
 del k, K, lin_reg, train_index, test_index
@@ -112,8 +111,6 @@ min_error_index = np.where(test_error == min_error)[0][0]
 plt.figure(figsize=(8,8))
 plt.semilogx(lambdas, np.sqrt(train_error))
 plt.semilogx(lambdas, np.sqrt(test_error))
-# plt.semilogx(lambdas, train_error)
-# plt.semilogx(lambdas, test_error)
 plt.semilogx(lambdas[min_error_index], np.sqrt(min_error), 'o')
 plt.text(1, 10, "Minimum test error: " + str(np.round(np.sqrt(min_error),2)) + ' at 1e' + str(np.round(np.log10(lambdas[min_error_index]),2)))
 plt.xlabel('Regularization strength, $\log_{10}(\lambda)$')
@@ -121,11 +118,10 @@ plt.ylabel('RMSE')
 plt.title('Regression error')
 plt.legend(['Training error','Test error','Test minimum'],loc='upper right')
 plt.ylim([5, 15])
-# plt.ylim([60, 120])
 plt.grid()
 plt.show()  
 
-print('Ridge regression MSE:', np.round(np.mean(min_error),4))
+# print('Ridge regression MSE:', np.round(np.mean(min_error),4))
 print('Ridge regression RMSE:', np.round(np.sqrt(np.mean(min_error)),4))
 print('lambda:', np.round(lambdas[min_error_index],4))
 
@@ -137,11 +133,11 @@ del mse_train, mse_test, min_error, min_error_index
 
 #%% 3. 
 '''
-i    Get 2nd, 6th and 8th attribute
+i    Select best attributes?
 ii   Standardize data
 iii  Use 3rd order polynomial interpolation on data
 iv   Get prediction by running data through model
-v    Unstandardize result from prediction
+v    Unstandardize result from prediction(?)
 vi   profit???
 
 https://scikit-learn.org/stable/auto_examples/linear_model/plot_polynomial_interpolation.html
@@ -152,15 +148,19 @@ https://scikit-learn.org/stable/auto_examples/linear_model/plot_polynomial_inter
 
 #%% 1. K1/K2 and CV1/CV2 redundant? 
 
-K1 =  2 # 10
-K2 =  3 # 10
+K1 = 10 # 2 # 10
+K2 = 10 # 2 # 10
 
 # Init hyperparameters
-hidden_units = np.arange(start = 1, stop = 20, step = 4) # np.arange(start = 1, stop = 100, step = 25) # 
+hidden_units = np.arange(start = 1, stop = 10, step = 2) # np.arange(start = 1, stop = 100, step = 25) # 
 lambdas = np.logspace(-3, 4, 50)
 
+# Init optimal hyperparameters
+h_opt = np.zeros(K1).astype(int)
+lambda_opt = np.zeros(K1)
+
 # Init errors
-nn_error = np.zeros(K1) # articial neural network
+nn_error = np.zeros(K1)  # articial neural network
 rr_error = np.zeros(K1)  # ridge regression
 bl_error = np.zeros(K1)  # baseline
 
@@ -173,30 +173,33 @@ N, M = X0.shape
 
 # Parameters for neural network 
 n_replicates = 1       # number of networks trained in each k-fold
-max_iter = 1000
+max_iter = 5000
 
 
-# Outer CV for test data
+
+##### Outer CV for test data #####
 k=0
 for par_index, test_index in CV1.split(X0):
 
     # extract training and test set for current CV fold
-    X_par, y_par = X0[par_index,:], y_r[par_index]
-    X_test, y_test = X0[test_index,:], y_r[test_index]
+    X_par, y_par = X0[par_index,:], np.expand_dims(y_r, axis=1)[par_index]
+    X_test, y_test = X0[test_index,:], np.expand_dims(y_r, axis=1)[test_index]
 
     # Init RMSE
     nn_error_val = np.zeros([K2,len(hidden_units)])
     rr_error_val = np.zeros([K2,len(lambdas)])
     
     # Init optimal lambda & optimal h
-    h_opt = np.zeros(K2)
-    lambda_opt = np.zeros(K2)
+    h_opt_val = np.zeros(K2)
+    lambda_opt_val = np.zeros(K2)
     
     # Init min error
     min_error_nn_val = np.zeros(K2)
     min_error_rr_val = np.zeros(K2)
 
-    # Inner loop for training and validation
+
+
+    ##### Inner loop for training and validation #####
     j=0
     for train_index, val_index in CV2.split(X_par):
         
@@ -208,18 +211,20 @@ for par_index, test_index in CV1.split(X0):
         X_nn_train = torch.Tensor(X_train)
         y_nn_train = torch.Tensor(y_train)
         X_nn_val = torch.Tensor(X_val)
-        # y_nn_val = torch.Tensor(y_val)
 
 
-        ##### crunch that sweet training data #####
 
-        # ANN training
+        ##### ANN training #####
         for i, h in enumerate(hidden_units):
 
             # Define the model
             model = lambda: torch.nn.Sequential(
                                 torch.nn.Linear(M, h), #M features to n_hidden_units
-                                torch.nn.ReLU(),#torch.nn.Tanh(),   # 1st transfer function,
+                                torch.nn.Tanh(), # 1st transfer function,
+
+                                torch.nn.Linear(h, h),   # torch.nn.ReLU()   torch.nn.Tanh()
+                                torch.nn.ReLU(),
+                                
                                 torch.nn.Linear(h, 1), # n_hidden_units to 1 output neuron
                                 # no final tranfer function, i.e. "linear output"
                                 )
@@ -243,10 +248,11 @@ for par_index, test_index in CV1.split(X0):
         min_error_nn_val[j] = np.min(mean_nn_error_val)
 
         min_error_nn_index = np.where(mean_nn_error_val == min_error_nn_val[j])[0][0]
-        h_opt[j] = hidden_units[min_error_nn_index]
-            
+        h_opt_val[j] = hidden_units[min_error_nn_index]
+        
+        
 
-        # Ridge training
+        ##### Ridge training #####
         for i, lam in enumerate(lambdas):
     
             # Fit ridge regression model
@@ -263,24 +269,28 @@ for par_index, test_index in CV1.split(X0):
         min_error_rr_val[j] = np.min(mean_rr_error_val)
 
         min_error_rr_index = np.where(mean_rr_error_val == min_error_rr_val[j])[0][0]
-        lambda_opt[j] = lambdas[min_error_rr_index]
+        lambda_opt_val[j] = lambdas[min_error_rr_index]
     
+    
+
         print('\nK1:',k+1,' K2:',j+1)
         print('min rr RMSE error:', np.round(min_error_rr_val[j],4))
+        print('min nn RMSE error:', np.round(min_error_nn_val[j],4))
         print('opt lambda:', np.round(lambdas[min_error_rr_index],4))
-
+        print('opt h:', np.round(hidden_units[min_error_nn_index],4))
     
-        # Temp visualization, to be commented
-        plt.figure(figsize=(8,8))
-        plt.plot(hidden_units, mean_nn_error_val)
-        plt.plot(hidden_units[min_error_nn_index], min_error_nn_val[j], 'o')
-        plt.xlabel('Hidden units')
-        plt.ylabel('RMSE')
-        plt.title('ANN - error')
-        plt.legend(['Val error','Val minimum'],loc='upper right')
-        plt.ylim([0, 30])
-        plt.grid()
-        plt.show()  
+    
+        # # Temp visualization, to be commented
+        # plt.figure(figsize=(8,8))
+        # plt.plot(hidden_units, mean_nn_error_val)
+        # plt.plot(hidden_units[min_error_nn_index], min_error_nn_val[j], 'o')
+        # plt.xlabel('Hidden units')
+        # plt.ylabel('RMSE')
+        # plt.title('ANN - error')
+        # plt.legend(['Val error','Val minimum'],loc='upper right')
+        # plt.ylim([0, 30])
+        # plt.grid()
+        # plt.show()  
         
         # plt.figure(figsize=(8,8))
         # plt.semilogx(lambdas, mean_rr_error_val)
@@ -296,51 +306,81 @@ for par_index, test_index in CV1.split(X0):
         
         j+=1
 
+
+    h_opt[k] = np.round(np.mean(h_opt_val)).astype(int)
+    lambda_opt[k] = np.mean(lambda_opt_val)
+
+
     print('\nmean rr val error', np.round(np.mean(min_error_rr_val),4))
-    print('mean lambda', np.round(np.mean(lambda_opt),4))
+    print('mean nn val error', np.round(np.mean(min_error_nn_val),4))
+    print('mean lambda', np.round(lambda_opt[k],4))
+    print('mean h', h_opt[k])
+    # print('most frequent h', np.argmax(np.bincount(h_opt_val.astype(int))))
 
 
-    ##### test data here #####
 
-    # ANN testing
+    ##### Validation using test data #####
 
-    # nn_error[k] =
+    # ANN testing    
+    X_nn_par = torch.Tensor(X_par)
+    y_nn_par = torch.Tensor(y_par)
+    X_nn_test = torch.Tensor(X_test)
+
+    model = lambda: torch.nn.Sequential(
+                        torch.nn.Linear(M, h_opt[k]),
+                        torch.nn.Tanh(),
+                        torch.nn.Linear(h_opt[k], h_opt[k]),
+                        torch.nn.ReLU(),
+                        torch.nn.Linear(h_opt[k], 1),
+                        )
+    loss_fn = torch.nn.MSELoss()
+
+    net, final_loss, learning_curve = train_neural_net(model,
+                                                        loss_fn,
+                                                        X=X_nn_par,
+                                                        y=y_nn_par,
+                                                        n_replicates=n_replicates,
+                                                        max_iter=max_iter)
+    y_nn_test_pred = net(X_nn_test).detach().numpy()
+    nn_error[k] = np.sqrt(np.mean((y_nn_test_pred-y_test)**2))
         
     
     # Ridge testing
+    ridge_reg = make_pipeline(PolynomialFeatures(3), Ridge(alpha=lambda_opt[k]))
     ridge_reg.fit(X_par, y_par)
     y_test_pred = ridge_reg.predict(X_test)
     rr_error[k] = np.sqrt(np.mean((y_test_pred-y_test)**2))
 
+
     # Baseline testing
-    y_bl_pred = np.mean(y_test)
+    lin_reg = lm.LinearRegression(fit_intercept=True)
+    lin_reg.fit(X_par, y_par)
+    y_bl_pred = lin_reg.predict(X_test)
     bl_error[k] = np.sqrt(np.mean((y_bl_pred-y_test)**2))  # root mean square error
 
     k+=1
     
     
-# Take mean from all three methods and compare?
+# Take mean from all three methods and compare
 print('\n')
-print('final nn error:', np.round(nn_error,2))
-print('final rr error:', np.round(rr_error,2))
-print('final bl error:', np.round(bl_error,2))
+print('estimated nn error:', np.round(nn_error,2))
+print('estimated rr error:', np.round(rr_error,2))
+print('estimated bl error:', np.round(bl_error,2))
+print('optimal hidden units:', h_opt)
+print('optimal lambdas:', np.round(lambda_opt,2))
 
-print('\nfinal means:', np.round(np.mean(nn_error),2), np.round(np.mean(rr_error),2), np.round(np.mean(bl_error),2))
+print('\nfinal means:\nNN:', np.round(np.mean(nn_error),2), '\nRR:', np.round(np.mean(rr_error),2), '\nBL:', np.round(np.mean(bl_error),2))
 
 
-del i, j, k, K1, K2, y_bl_pred, lam
+del i, j, K1, K2, y_bl_pred, lam, N, max_iter
 del par_index, train_index, val_index, test_index
-# del hidden_units, lambdas
+del min_error_nn_index, min_error_rr_index, n_replicates
+del hidden_units, lambdas
 
 
 #%% 2.
 
-
-
-
-
-
-
+# Pie, see above
 
 
 #%% 3.
