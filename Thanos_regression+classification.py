@@ -10,7 +10,8 @@ from toolbox_02450 import feature_selector_lr, feature_classifier, bmplot
 from sklearn.preprocessing import PolynomialFeatures
 from sklearn.pipeline import make_pipeline
 from sklearn.linear_model import Ridge
-
+from sklearn.model_selection import cross_val_score
+from sklearn.linear_model import Lasso
 
 #DATA PRE-PROCESSING
 
@@ -96,7 +97,7 @@ del scaler_binary, scaler_reg, fam_history, fh, heart_data, unique_hist, history
 from sklearn.preprocessing import PolynomialFeatures
 from sklearn.linear_model import LinearRegression
 from sklearn import model_selection
-
+from sklearn.linear_model import ElasticNet
 
 
 
@@ -113,8 +114,15 @@ Error_train_lin = np.empty((len(lc),K))
 Error_test_lin = np.empty((len(lc),K))
 mse_train_ridge = np.zeros([K,len(lambdas)])
 mse_test_ridge = np.zeros([K,len(lambdas)])
+mse_train_lasso = np.zeros([K,len(lambdas)])
+mse_test_lasso = np.zeros([K,len(lambdas)])
+mse_train_elastic = np.zeros([K,len(lambdas)])
+mse_test_elastic  = np.zeros([K,len(lambdas)])
 k=0
 w=0
+z=0
+ratio=0
+p=0
 for train_index, test_index in CV.split(Xr):
     print('Computing linear CV fold: {0}/{1}..'.format(w+1,K))
 
@@ -131,7 +139,7 @@ for train_index, test_index in CV.split(Xr):
         misclass_rate_test = np.square(yr_test_KFold_lin-lin_test_pred).sum()/yr_test_KFold_lin.shape[0]
         misclass_rate_train = np.square(yr_train_KFold_lin-lin_train_pred).sum()/yr_train_KFold_lin.shape[0]
         Error_test_lin[d,w], Error_train_lin[d,w] = misclass_rate_test, misclass_rate_train
-        
+       
     w+=1
     
     # Fit for each lambda
@@ -150,12 +158,48 @@ for train_index, test_index in CV.split(Xr):
         mse_test_ridge[k,i] = np.mean((y_test_pred_ridge-yr_test_KFold_lin)**2)
 
     k+=1
+    
+    
+    for h, alph in enumerate(lambdas):
+
+        # Fit ridge regression model
+        lasso_reg = Lasso(alpha=alph)
+        lasso_reg.fit(Xr_train_KFold_lin, yr_train_KFold_lin)
+        # Compute model output:
+        y_train_pred_lasso = lasso_reg.predict(Xr_train_KFold_lin)
+        y_test_pred_lasso = lasso_reg.predict(Xr_test_KFold_lin)
+
+        # Calculate error
+        mse_train_lasso[z,h] = np.mean((y_train_pred_lasso-yr_train_KFold_lin)**2)
+        mse_test_lasso[z,h] = np.mean((y_test_pred_lasso-yr_test_KFold_lin)**2)
+
+    z+=1
+    
+    for l, alp in enumerate(lambdas):
+
+        # Fit ridge regression model
+        elastic_reg = ElasticNet(alpha=alp, l1_ratio=ratio)
+        elastic_reg.fit(Xr_train_KFold_lin, yr_train_KFold_lin)
+        # Compute model output:
+        y_train_pred_elastic = elastic_reg.predict(Xr_train_KFold_lin)
+        y_test_pred_elastic = elastic_reg.predict(Xr_test_KFold_lin)
+
+        # Calculate error
+        mse_train_elastic[p,l] = np.mean((y_train_pred_elastic-yr_train_KFold_lin)**2)
+        mse_test_elastic[p,l] = np.mean((y_test_pred_elastic-yr_test_KFold_lin)**2)
+    ratio+0.1 
+    p+=1
+    
 #penalty='elasticnet', , solver='saga',l1_ratio=ratio
 
 
 
 train_error_ridge = np.mean(mse_train_ridge,axis=0)
 test_error_ridge = np.mean(mse_test_ridge,axis=0)
+train_error_lasso = np.mean(mse_train_lasso,axis=0)
+test_error_lasso = np.mean(mse_test_lasso,axis=0)
+train_error_elastic = np.mean(mse_train_elastic,axis=0)
+test_error_elastic = np.mean(mse_test_elastic,axis=0)
 
 min_error = np.min(test_error_ridge)
 min_error_index = np.where(test_error_ridge == min_error)[0][0]
@@ -165,6 +209,10 @@ plt.semilogx(lambdas, np.sqrt(train_error_ridge),label='Ridge train error')
 plt.semilogx(lambdas, np.sqrt(test_error_ridge),label='Ridge test error')
 plt.semilogx(lambdas, np.sqrt(Error_test_lin.mean(1)),label='Linear train error')
 plt.semilogx(lambdas, np.sqrt(Error_test_lin.mean(1)),label='Linear test error')
+plt.semilogx(lambdas, np.sqrt(train_error_lasso),label='Lasso train error')
+plt.semilogx(lambdas, np.sqrt(test_error_lasso),label='Lasso test error')
+plt.semilogx(lambdas, np.sqrt(train_error_elastic),label='ElasticNet train error')
+plt.semilogx(lambdas, np.sqrt(test_error_elastic),label='ElasticNet test error')
 plt.semilogx(lambdas[min_error_index], np.sqrt(min_error), 'o')
 plt.text(1, 10, "Minimum test error: " + str(np.round(np.sqrt(min_error),2)) + ' at 1e' + str(np.round(np.log10(lambdas[min_error_index]),2)))
 plt.xlabel('Regularization strength, $\log_{10}(\lambda)$')
@@ -178,6 +226,7 @@ plt.show()
 # print('Ridge regression MSE:', np.round(np.mean(min_error),4))
 print('Ridge regression RMSE:', np.round(np.sqrt(np.mean(min_error)),4))
 print('lambda:', np.round(lambdas[min_error_index],4))
+
 
 
 
@@ -254,7 +303,7 @@ for train_index, test_index in CV.split(Xr):
         plot(range(1,len(loss_record)), np.sqrt(loss_record[1:]))
         xlabel('Iteration')
         ylabel('RMSE (crossvalidation)')    
-        title('Regression odel number: {0}'.format(k))
+        title('Regression model number: {0}'.format(k))
         subplot(1,3,3)
         bmplot(regression_attribute_names, range(1,features_record.shape[1]), -features_record[:,1:])
         clim(-1.5,0)
@@ -314,6 +363,31 @@ else:
 #title('Feature selection for Regression', loc='right')    
 show()
 
+min_error = np.min(test_error_ridge)
+min_error_index = np.where(test_error_ridge == min_error)[0][0]
+
+
+
+import matplotlib.pyplot as plt
+plt.figure(figsize=(8,8))
+plt.semilogx(lambdas[10:50:4], np.sqrt(train_error_ridge[10:50:4]),label='Ridge train error')
+plt.semilogx(lambdas[10:50:4], np.sqrt(test_error_ridge[10:50:4]),label='Ridge test error')
+plt.semilogx(lambdas[10:50:4], np.sqrt(Error_test_lin[0:10].mean(1)),label='Linear train error')
+plt.semilogx(lambdas[10:50:4], np.sqrt(Error_test_lin[0:10].mean(1)),label='Linear test error')
+plt.semilogx(lambdas[10:50:4], np.sqrt(train_error_elastic[10:50:4]),label='ElasticNet train error')
+plt.semilogx(lambdas[10:50:4], np.sqrt(test_error_elastic[10:50:4]),label='ElasticNet test error')
+plt.semilogx(lambdas[10:50:4], np.sqrt(Error_train_fs[:,0]),label='Linear feature selection train error')
+plt.semilogx(lambdas[10:50:4], np.sqrt(Error_test_fs[:,0]),label='Linear feature selection test error')
+plt.semilogx(lambdas[min_error_index], np.sqrt(min_error), 'o')
+plt.text(1, 10, "Minimum test error: " + str(np.round(np.sqrt(min_error),2)) + ' at 1e' + str(np.round(np.log10(lambdas[min_error_index]),2)))
+plt.xlabel('Regularization strength, $\log_{10}(\lambda)$')
+plt.ylabel('RMSE')
+plt.title('Regression error before/after feature selection')
+plt.legend(loc=0)
+#plt.legend(['Training error','Test error','Test minimum'],loc='upper right')
+plt.ylim([5, 15])
+plt.grid()
+plt.show()  
 
 
 #FITTING THE BEST SET OF FEATURES TO THE MODELS TO BE COMPARED
