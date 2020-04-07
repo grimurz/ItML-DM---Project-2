@@ -7,6 +7,10 @@ from sklearn.preprocessing import StandardScaler
 from matplotlib.pylab import figure, plot, xlabel, ylabel, legend, show, boxplot, subplot, title, clim
 from sklearn import model_selection, metrics
 from toolbox_02450 import feature_selector_lr, feature_classifier, bmplot
+from sklearn.preprocessing import PolynomialFeatures
+from sklearn.pipeline import make_pipeline
+from sklearn.linear_model import Ridge
+
 
 #DATA PRE-PROCESSING
 
@@ -76,21 +80,6 @@ N, M = Xr.shape
 del scaler_binary, scaler_reg, fam_history, fh, heart_data, unique_hist, historyDict
 
 
-#---------------------------------------------
-#MODEL TRAINING
-
-# Splitting the dataset into the Training set and Test set
-from sklearn.model_selection import train_test_split
-Xc_train, Xc_test, yc_train, yc_test = train_test_split(Xc, yc, test_size = 0.25, random_state = 0)
-Xr_train, Xr_test, yr_train, yr_test = train_test_split(Xr, yr, test_size = 0.25, random_state = 0)
-
-
-# Applying LDA
-from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
-lda = LDA(n_components = 2)
-Xc_train_LDA = lda.fit_transform(Xc_train, yc_train)
-Xc_test_LDA = lda.transform(Xc_test)
-
 
 #----------------------Regression Models-------------------------------------
 
@@ -101,22 +90,30 @@ Xc_test_LDA = lda.transform(Xc_test)
 
 #PROJECT 2, Regression, PART a, points 1-2, --------------------------------
 
-#INSERT A REGULARIZATION TERM IN EACH FOLD TO WORK PROPERLY, OTHERWISE YOU GET THE SAME RESULT IN EACH FOLD
+
 #No feature selection
 
 from sklearn.preprocessing import PolynomialFeatures
 from sklearn.linear_model import LinearRegression
 from sklearn import model_selection
+
+
+
+
+# Values of lambda
+lambdas = np.logspace(-3, 4, 50)
+lc = np.arange(0.025,1.26,0.025)
 # K-fold crossvalidation
 K = 10
-CV = model_selection.KFold(n_splits=K,shuffle=True)
+CV = model_selection.KFold(n_splits=K,shuffle=True, random_state = 42)
 
-lc = np.arange(0.025,1.26,0.025)
-poly = np.logspace(-3, 4, 50)
+
 # Initialize variables
 Error_train_lin = np.empty((len(lc),K))
 Error_test_lin = np.empty((len(lc),K))
-
+mse_train_ridge = np.zeros([K,len(lambdas)])
+mse_test_ridge = np.zeros([K,len(lambdas)])
+k=0
 w=0
 for train_index, test_index in CV.split(Xr):
     print('Computing linear CV fold: {0}/{1}..'.format(w+1,K))
@@ -124,7 +121,7 @@ for train_index, test_index in CV.split(Xr):
     # extract training and test set for current CV fold
     Xr_train_KFold_lin, yr_train_KFold_lin = Xr[train_index,:], yr[train_index]
     Xr_test_KFold_lin, yr_test_KFold_lin = Xr[test_index,:], yr[test_index]
-    for d, f in enumerate(lc):
+    for d, f in enumerate(lambdas):
         
         # Fitting linear Regression model to the Training set
         lin_reg = LinearRegression( n_jobs=-1)
@@ -135,34 +132,61 @@ for train_index, test_index in CV.split(Xr):
         misclass_rate_train = np.square(yr_train_KFold_lin-lin_train_pred).sum()/yr_train_KFold_lin.shape[0]
         Error_test_lin[d,w], Error_train_lin[d,w] = misclass_rate_test, misclass_rate_train
         
-        # Fitting Polynomial Regression model to the Training set
-        '''
-        poly_reg = PolynomialFeatures(degree = 3, order='F')
-        X_poly = poly_reg.fit_transform(Xr_train)
-        poly_reg.fit(X_poly, yr_train)
-        lin_reg_2 = LinearRegression(n_jobs=-1)
-        lin_reg_2.fit(X_poly, yr_train)
-        '''
-        
-        
     w+=1
+    
+    # Fit for each lambda
+    for i, lam in enumerate(lambdas):
+
+        # Fit ridge regression model
+        ridge_reg = make_pipeline(PolynomialFeatures(2), Ridge(alpha=lam))
+        ridge_reg.fit(Xr_train_KFold_lin, yr_train_KFold_lin)
+
+        # Compute model output:
+        y_train_pred_ridge = ridge_reg.predict(Xr_train_KFold_lin)
+        y_test_pred_ridge = ridge_reg.predict(Xr_test_KFold_lin)
+
+        # Calculate error
+        mse_train_ridge[k,i] = np.mean((y_train_pred_ridge-yr_train_KFold_lin)**2)
+        mse_test_ridge[k,i] = np.mean((y_test_pred_ridge-yr_test_KFold_lin)**2)
+
+    k+=1
 #penalty='elasticnet', , solver='saga',l1_ratio=ratio
 
 
 
-f = figure()
-boxplot(Error_test_lin.T)
-xlabel('Complexity: Regularization Factor')
-ylabel('Test error across CV folds, K={0})'.format(K))
-f = figure()
-plot(lc, np.sqrt(Error_train_lin.mean(1)))
-plot(lc, np.sqrt(Error_test_lin.mean(1)))
-xlabel('Complexity: Regularization Factor')
-ylabel('Error (RMSE, CV K={0})'.format(K))
-legend(['Error_train','Error_test'])
-title('Multiple Linear Regression')    
-show() 
- 
+train_error_ridge = np.mean(mse_train_ridge,axis=0)
+test_error_ridge = np.mean(mse_test_ridge,axis=0)
+
+min_error = np.min(test_error_ridge)
+min_error_index = np.where(test_error_ridge == min_error)[0][0]
+import matplotlib.pyplot as plt
+plt.figure(figsize=(8,8))
+plt.semilogx(lambdas, np.sqrt(train_error_ridge),label='Ridge train error')
+plt.semilogx(lambdas, np.sqrt(test_error_ridge),label='Ridge test error')
+plt.semilogx(lambdas, np.sqrt(Error_test_lin.mean(1)),label='Linear train error')
+plt.semilogx(lambdas, np.sqrt(Error_test_lin.mean(1)),label='Linear test error')
+plt.semilogx(lambdas[min_error_index], np.sqrt(min_error), 'o')
+plt.text(1, 10, "Minimum test error: " + str(np.round(np.sqrt(min_error),2)) + ' at 1e' + str(np.round(np.log10(lambdas[min_error_index]),2)))
+plt.xlabel('Regularization strength, $\log_{10}(\lambda)$')
+plt.ylabel('RMSE')
+plt.title('Regression error')
+plt.legend(['Training error','Test error','Test minimum'],loc='upper right')
+plt.ylim([5, 15])
+plt.grid()
+plt.show()  
+
+# print('Ridge regression MSE:', np.round(np.mean(min_error),4))
+print('Ridge regression RMSE:', np.round(np.sqrt(np.mean(min_error)),4))
+print('lambda:', np.round(lambdas[min_error_index],4))
+
+
+
+
+del k, K, i, lam, ridge_reg, train_index, test_index
+del mse_train_ridge, mse_test_ridge, min_error, min_error_index
+
+
+
 
 
 #MOVING ON WITH THE BEST TUNED REGULARIZATION FACTOR('C')
@@ -177,7 +201,7 @@ show()
 ## Linear regression model with nested cros validation AND feature selection
 
 K = 10
-CV = model_selection.KFold(n_splits=K,shuffle=True)
+CV = model_selection.KFold(n_splits=K,shuffle=True, random_state = 42)
 from sklearn.linear_model import LinearRegression
 # Initialize variables
 Features = np.zeros((M,K))
@@ -227,9 +251,9 @@ for train_index, test_index in CV.split(Xr):
     
         figure(k)
         subplot(1,2,1)
-        plot(range(1,len(loss_record)), loss_record[1:])
+        plot(range(1,len(loss_record)), np.sqrt(loss_record[1:]))
         xlabel('Iteration')
-        ylabel('Squared error (crossvalidation)')    
+        ylabel('RMSE (crossvalidation)')    
         title('Regression odel number: {0}'.format(k))
         subplot(1,3,3)
         bmplot(regression_attribute_names, range(1,features_record.shape[1]), -features_record[:,1:])
@@ -327,7 +351,7 @@ from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
 
 # K-fold crossvalidation
 K = 10
-CV = model_selection.KFold(n_splits=K,shuffle=True)
+CV = model_selection.KFold(n_splits=K,shuffle=True, random_state = 42)
 
 # Initialize variables
 Error_train_base = np.empty((K,1))
@@ -349,7 +373,7 @@ for train_index, test_index in CV.split(Xc):
     
     #Baseline Logistic Regression model with LDA transformation
     
-    log_classifier_base = LogisticRegression( C=1,  n_jobs=-1, random_state = 0)
+    log_classifier_base = LogisticRegression( C=1,  n_jobs=-1)
     log_classifier_base.fit(Xc_train_GRID_log, yc_train_GRID_log)
     
     # Applying LDA
@@ -358,7 +382,7 @@ for train_index, test_index in CV.split(Xc):
     Xc_train_LDA = lda.fit_transform(Xc_train_GRID_log, yc_train_GRID_log)
     Xc_test_LDA = lda.transform(Xc_test_GRID_log)
    
-    log_classifier = LogisticRegression( C=1,  n_jobs=-1, random_state = 0)
+    log_classifier = LogisticRegression( C=1,  n_jobs=-1)
     log_classifier.fit(Xc_train_LDA, yc_train_GRID_log)
 
     #Grid search for Logistic Regression
@@ -391,7 +415,7 @@ for train_index, test_index in CV.split(Xc):
     
     # Fitting Random Forest  to the dataset
     
-    rand_forest_simple = RandomForestClassifier(n_estimators = 400, max_depth=4, min_samples_split= 9,min_samples_leaf=2, max_features="auto",bootstrap=True, random_state = 0, n_jobs= -1)
+    rand_forest_simple = RandomForestClassifier(n_estimators = 400, max_depth=4, min_samples_split= 9,min_samples_leaf=2, max_features="auto",bootstrap=True, n_jobs= -1)
     rand_forest_simple.fit(Xc_train_GRID_log, yc_train_GRID_log)
     #Error calculation for the Random Forest model
     RF_test_pred = rand_forest_simple.predict(Xc_test_GRID_log)
@@ -423,8 +447,8 @@ plt.semilogx(C, Error_train_base*100,label='Baseline train error')
 plt.semilogx(C, Error_test_base*100,label='Baseline test error')
 plt.semilogx(C, Error_train_GRID_log*100,label='Tuned logistic train error')
 plt.semilogx(C, Error_test_GRID_log*100,label='Tuned logistic test error')
-plt.semilogx(C, Error_train_RF*100,label='Simple Random forests train error')
-plt.semilogx(C, Error_test_RF*100,label='Simple Random forests test error')
+plt.semilogx(C, Error_train_RF.mean(1)*100,label='Simple Random forests train error')
+plt.semilogx(C, Error_test_RF.mean(1)*100,label='Simple Random forests test error')
 xlabel('Regularization factor')
 ylabel('Error (%), CV K={0}'.format(K))
 legend(loc=0,shadow=True, fontsize='x-small')
@@ -444,7 +468,7 @@ from sklearn import model_selection
 
 # K-fold crossvalidation
 K = 10
-CV = model_selection.KFold(n_splits=K,shuffle=True)
+CV = model_selection.KFold(n_splits=K,shuffle=True, random_state = 42)
 
 lc = np.arange(0.025,1.25,0.125)
 tc = np.arange(10,500,50)
@@ -473,7 +497,7 @@ for train_index, test_index in CV.split(Xc):
     for i, t in enumerate(tc):
         
         # Fitting Random Forest model to the Training set
-        randc_forestCV = RandomForestClassifier(n_estimators = t, criterion = 'entropy', max_depth=3, min_samples_leaf=i+1, min_samples_split=i+2, max_features="auto", bootstrap=False, random_state = 0, n_jobs= -1)
+        randc_forestCV = RandomForestClassifier(n_estimators = t, criterion = 'entropy', max_depth=3, min_samples_leaf=i+1, min_samples_split=i+2, max_features="auto", bootstrap=False, n_jobs= -1)
         randc_forestCV.fit(Xc_train_KFold_log, yc_train_KFold_log.ravel())  
 
         rfc_test_pred = randc_forestCV.predict(Xc_test_KFold_log)
@@ -486,7 +510,7 @@ for train_index, test_index in CV.split(Xc):
     for a, c in enumerate(lc):
         
         # Fitting the baseline Logistic Regression model to the Training set
-        log_classifier_intercept = LogisticRegression(fit_intercept=True,  n_jobs=-1, random_state = 0)
+        log_classifier_intercept = LogisticRegression(fit_intercept=True,  n_jobs=-1)
         log_classifier_intercept.fit(Xc_train_KFold_log, yc_train_KFold_log.ravel())
         
         log_intercept_test_pred = log_classifier_intercept.predict(Xc_test_KFold_log)
@@ -503,7 +527,7 @@ for train_index, test_index in CV.split(Xc):
         Xc_test_LDA = lda.transform(Xc_test_KFold_log)
     
         # Fitting Logistic Regression model to the Training set
-        log_classifier = LogisticRegression( C=c, n_jobs=-1, random_state = 0)
+        log_classifier = LogisticRegression( C=c, n_jobs=-1)
         log_classifier.fit(Xc_train_LDA, yc_train_KFold_log.ravel())
         
         log_test_pred = log_classifier.predict(Xc_test_LDA)
@@ -574,7 +598,7 @@ plt.show()
 #TAKE THE BEST MODELS FROM ABOVE AND FIND THE BEST COMBINATIONS OF FEATURES BELOW
 
 K = 10
-CV = model_selection.KFold(n_splits=K,shuffle=True)
+CV = model_selection.KFold(n_splits=K,shuffle=True, random_state = 42)
 from sklearn.linear_model import LinearRegression
 # Initialize variables
 Features = np.zeros((M,K))
@@ -609,7 +633,7 @@ for train_index, test_index in CV.split(Xc):
         
         
          # Fitting Random Forest model to the Training set
-        randc_forestFS = RandomForestClassifier(n_estimators = 400, criterion = 'entropy', max_depth=3, min_samples_leaf=4, min_samples_split=9, max_features="auto", bootstrap=False, random_state = 0, n_jobs= -1)
+        randc_forestFS = RandomForestClassifier(n_estimators = 400, criterion = 'entropy', max_depth=3, min_samples_leaf=4, min_samples_split=9, max_features="auto", bootstrap=False, n_jobs= -1)
         randc_forestFS.fit(Xc_train[:,selected_features], yc_train)  
 
         rfc_test_pred_fs = randc_forestFS.predict(Xc_test[:,selected_features])
@@ -623,7 +647,7 @@ for train_index, test_index in CV.split(Xc):
 
         
         #Feature selection for log reg
-        log_classifier = LogisticRegression(C=1,  n_jobs=-1, random_state = 0)
+        log_classifier = LogisticRegression(C=1,  n_jobs=-1)
         log_classifier.fit(Xc_train[:,selected_features], yc_train)
         
         log_test_pred = log_classifier.predict(Xc_test[:,selected_features])
@@ -641,7 +665,7 @@ for train_index, test_index in CV.split(Xc):
         Xc_train_LDA = lda.fit_transform(Xc_train[:,selected_features], yc_train)
         Xc_test_LDA = lda.transform(Xc_test[:,selected_features])
         #Retraining of the Logistic Regression model with selected features and LDA analysis on the selected features
-        log_classifier_fsLDA = LogisticRegression(fit_intercept=True,  n_jobs=-1, random_state = 0)
+        log_classifier_fsLDA = LogisticRegression(fit_intercept=True,  n_jobs=-1)
         log_classifier_fsLDA.fit(Xc_train_LDA, yc_train)
         
         log_test_pred_fsLDA = log_classifier_fsLDA.predict(Xc_test_LDA)
@@ -1114,7 +1138,20 @@ plt.ylabel('Estimated Salary')
 plt.legend()
 plt.show()
 '''
-
+'''
+f = figure()
+boxplot(Error_test_lin.T)
+xlabel('Complexity: Regularization Factor')
+ylabel('Test error across CV folds, K={0})'.format(K))
+f = figure()
+plot(lc, np.sqrt(Error_train_lin.mean(1)))
+plot(lc, np.sqrt(Error_test_lin.mean(1)))
+xlabel('Complexity: Regularization Factor')
+ylabel('Error (RMSE, CV K={0})'.format(K))
+legend(['Error_train','Error_test'])
+title('Multiple Linear Regression')    
+show() 
+ '''
 #-----------------------------------------------------------
 #IDLE CODE
 
@@ -1124,3 +1161,27 @@ plt.show()
 
 #sum(rfc_test_pred != yc_test_KFold) / float(len(rfc_test_pred))
 #sum(rfc_train_pred != yc_train_KFold) /float(len(rfc_train_pred))
+
+#---------------------------------------------
+#MODEL TRAINING
+
+# Splitting the dataset into the Training set and Test set
+#from sklearn.model_selection import train_test_split
+#Xc_train, Xc_test, yc_train, yc_test = train_test_split(Xc, yc, test_size = 0.25, random_state = 42)
+#Xr_train, Xr_test, yr_train, yr_test = train_test_split(Xr, yr, test_size = 0.25, random_state = 42)
+
+
+# Applying LDA
+#from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
+#lda = LDA(n_components = 2)
+#Xc_train_LDA = lda.fit_transform(Xc_train, yc_train)
+#Xc_test_LDA = lda.transform(Xc_test)
+
+
+# Fitting Polynomial Regression model to the Training set
+#poly_reg = PolynomialFeatures(degree = 3, order='F')
+#X_poly = poly_reg.fit_transform(Xr_train)
+#poly_reg.fit(X_poly, yr_train)
+#lin_reg_2 = LinearRegression(n_jobs=-1)
+#lin_reg_2.fit(X_poly, yr_train)
+  
