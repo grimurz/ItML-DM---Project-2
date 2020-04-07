@@ -11,6 +11,9 @@ from sklearn.preprocessing import PolynomialFeatures
 from sklearn.pipeline import make_pipeline
 from sklearn.feature_selection import SelectKBest, f_regression, mutual_info_regression
 
+import torch
+from toolbox_02450 import train_neural_net, draw_neural_net
+
 # from matplotlib.pyplot import figure, plot, xlabel, ylabel, legend, subplot, hist, show
 
 X0 = SelectKBest(f_regression, k=7).fit_transform(X_r, y_r)
@@ -129,7 +132,7 @@ print('lambda:', np.round(lambdas[min_error_index],4))
 
 
 del k, K, i, lam, ridge_reg, train_index, test_index
-# del mse_train, mse_test, min_error, min_error_index
+del mse_train, mse_test, min_error, min_error_index
 
 
 #%% 3. 
@@ -150,20 +153,28 @@ https://scikit-learn.org/stable/auto_examples/linear_model/plot_polynomial_inter
 #%% 1. K1/K2 and CV1/CV2 redundant? 
 
 K1 =  2 # 10
-K2 =  4 # 10
+K2 =  3 # 10
 
 # Init hyperparameters
-hidden_units = np.arange(start = 1, stop = 20, step = 3)
+hidden_units = np.arange(start = 1, stop = 20, step = 4) # np.arange(start = 1, stop = 100, step = 25) # 
 lambdas = np.logspace(-3, 4, 50)
 
 # Init errors
-ann_error = np.zeros(K1) # articial neural network
+nn_error = np.zeros(K1) # articial neural network
 rr_error = np.zeros(K1)  # ridge regression
 bl_error = np.zeros(K1)  # baseline
 
-
+# Cross-validation
 CV1 = model_selection.KFold(n_splits=K1, shuffle=True, random_state=42)
-CV2 = model_selection.KFold(n_splits=K2, shuffle=True, random_state=43) # reduntant?
+CV2 = model_selection.KFold(n_splits=K2, shuffle=True, random_state=43) # redundant?
+
+# ANN model
+N, M = X0.shape
+
+# Parameters for neural network 
+n_replicates = 1       # number of networks trained in each k-fold
+max_iter = 1000
+
 
 # Outer CV for test data
 k=0
@@ -174,7 +185,7 @@ for par_index, test_index in CV1.split(X0):
     X_test, y_test = X0[test_index,:], y_r[test_index]
 
     # Init RMSE
-    ann_error_val = np.zeros([K2,len(hidden_units)])
+    nn_error_val = np.zeros([K2,len(hidden_units)])
     rr_error_val = np.zeros([K2,len(lambdas)])
     
     # Init optimal lambda & optimal h
@@ -182,7 +193,7 @@ for par_index, test_index in CV1.split(X0):
     lambda_opt = np.zeros(K2)
     
     # Init min error
-    min_error_ann_val = np.zeros(K2)
+    min_error_nn_val = np.zeros(K2)
     min_error_rr_val = np.zeros(K2)
 
     # Inner loop for training and validation
@@ -193,12 +204,46 @@ for par_index, test_index in CV1.split(X0):
         X_train, y_train = X_par[train_index,:], y_par[train_index]
         X_val, y_val = X_par[val_index,:], y_par[val_index]
 
+        # Convert to tensors
+        X_nn_train = torch.Tensor(X_train)
+        y_nn_train = torch.Tensor(y_train)
+        X_nn_val = torch.Tensor(X_val)
+        # y_nn_val = torch.Tensor(y_val)
+
+
         ##### crunch that sweet training data #####
 
         # ANN training
-  
+        for i, h in enumerate(hidden_units):
 
-          
+            # Define the model
+            model = lambda: torch.nn.Sequential(
+                                torch.nn.Linear(M, h), #M features to n_hidden_units
+                                torch.nn.ReLU(),#torch.nn.Tanh(),   # 1st transfer function,
+                                torch.nn.Linear(h, 1), # n_hidden_units to 1 output neuron
+                                # no final tranfer function, i.e. "linear output"
+                                )
+            loss_fn = torch.nn.MSELoss()
+            
+            # Train the net on training data
+            net, final_loss, learning_curve = train_neural_net(model,
+                                                                loss_fn,
+                                                                X=X_nn_train,
+                                                                y=y_nn_train,
+                                                                n_replicates=n_replicates,
+                                                                max_iter=max_iter)
+            
+            # Determine estimated class labels for test set
+            y_nn_val_pred = net(X_nn_val).detach().numpy()
+
+            # Calculate error (RMSE)
+            nn_error_val[j,i] = np.sqrt(np.mean((y_nn_val_pred-y_val)**2))
+
+        mean_nn_error_val = np.mean(nn_error_val,axis=0)
+        min_error_nn_val[j] = np.min(mean_nn_error_val)
+
+        min_error_nn_index = np.where(mean_nn_error_val == min_error_nn_val[j])[0][0]
+        h_opt[j] = hidden_units[min_error_nn_index]
             
 
         # Ridge training
@@ -223,19 +268,30 @@ for par_index, test_index in CV1.split(X0):
         print('\nK1:',k+1,' K2:',j+1)
         print('min rr RMSE error:', np.round(min_error_rr_val[j],4))
         print('opt lambda:', np.round(lambdas[min_error_rr_index],4))
-    
+
     
         # Temp visualization, to be commented
         plt.figure(figsize=(8,8))
-        plt.semilogx(lambdas, mean_rr_error_val)
-        plt.semilogx(lambdas[min_error_rr_index], min_error_rr_val[j], 'o')
-        plt.xlabel('Regularization strength, $\log_{10}(\lambda)$')
+        plt.plot(hidden_units, mean_nn_error_val)
+        plt.plot(hidden_units[min_error_nn_index], min_error_nn_val[j], 'o')
+        plt.xlabel('Hidden units')
         plt.ylabel('RMSE')
-        plt.title('Regression error')
+        plt.title('ANN - error')
         plt.legend(['Val error','Val minimum'],loc='upper right')
         plt.ylim([0, 30])
         plt.grid()
         plt.show()  
+        
+        # plt.figure(figsize=(8,8))
+        # plt.semilogx(lambdas, mean_rr_error_val)
+        # plt.semilogx(lambdas[min_error_rr_index], min_error_rr_val[j], 'o')
+        # plt.xlabel('Regularization strength, $\log_{10}(\lambda)$')
+        # plt.ylabel('RMSE')
+        # plt.title('Ridge regression - error')
+        # plt.legend(['Val error','Val minimum'],loc='upper right')
+        # plt.ylim([0, 30])
+        # plt.grid()
+        # plt.show()  
 
         
         j+=1
@@ -248,7 +304,7 @@ for par_index, test_index in CV1.split(X0):
 
     # ANN testing
 
-    # ann_error[k] =
+    # nn_error[k] =
         
     
     # Ridge testing
@@ -265,11 +321,11 @@ for par_index, test_index in CV1.split(X0):
     
 # Take mean from all three methods and compare?
 print('\n')
-print('final ann error:', np.round(ann_error,2))
+print('final nn error:', np.round(nn_error,2))
 print('final rr error:', np.round(rr_error,2))
 print('final bl error:', np.round(bl_error,2))
 
-print('\nfinal means:', np.round(np.mean(ann_error),2), np.round(np.mean(rr_error),2), np.round(np.mean(bl_error),2))
+print('\nfinal means:', np.round(np.mean(nn_error),2), np.round(np.mean(rr_error),2), np.round(np.mean(bl_error),2))
 
 
 del i, j, k, K1, K2, y_bl_pred, lam
