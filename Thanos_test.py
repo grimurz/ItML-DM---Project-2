@@ -106,89 +106,190 @@ log_classifier.fit(Xc_train_LDA, yc_train)
 
 '''
 #-------------------------------------------------------------------------
-## Crossvalidation
-# Create crossvalidation partition for evaluation
-K = 5
-CV = model_selection.KFold(n_splits=K,shuffle=True)
-
-# Initialize variables
-Features = np.zeros((M,K))
-Error_train = np.empty((K,1))
-Error_test = np.empty((K,1))
-Error_train_fs = np.empty((K,1))
-Error_test_fs = np.empty((K,1))
-Error_train_nofeatures = np.empty((K,1))
-Error_test_nofeatures = np.empty((K,1))
-
-k=0
-for train_index, test_index in CV.split(Xc):
-    
-    # extract training and test set for current CV fold
-    Xc_train = Xc[train_index,:]
-    yc_train = yc[train_index]
-    Xc_test = Xc[test_index,:]
-    yc_test = yc[test_index]
-    internal_cross_validation = 10
-    
-    # Compute squared error without using the input data at all
-    Error_train_nofeatures[k] = np.square(yc_train-yc_train.mean()).sum()/yc_train.shape[0]
-    Error_test_nofeatures[k] = np.square(yc_test-yc_test.mean()).sum()/yc_test.shape[0]
-
-    # Compute squared error with all features selected (no feature selection)
-    m = lm.LinearRegression(fit_intercept=True).fit(X_train, y_train)
-    Error_train[k] = np.square(y_train-m.predict(X_train)).sum()/y_train.shape[0]
-    Error_test[k] = np.square(y_test-m.predict(X_test)).sum()/y_test.shape[0]
-
-    # Compute squared error with feature subset selection
-    textout = ''
-    selected_features, features_record, loss_record = feature_selector_lr(X_train, y_train, internal_cross_validation,display=textout)
-    
-    Features[selected_features,k] = 1
-    # .. alternatively you could use module sklearn.feature_selection
-    if len(selected_features) is 0:
-        print('No features were selected, i.e. the data (X) in the fold cannot describe the outcomes (y).' )
-    else:
-        m = lm.LinearRegression(fit_intercept=True).fit(X_train[:,selected_features], y_train)
-        Error_train_fs[k] = np.square(y_train-m.predict(X_train[:,selected_features])).sum()/y_train.shape[0]
-        Error_test_fs[k] = np.square(y_test-m.predict(X_test[:,selected_features])).sum()/y_test.shape[0]
-    
-        figure(k)
-        subplot(1,2,1)
-        plot(range(1,len(loss_record)), loss_record[1:])
-        xlabel('Iteration')
-        ylabel('Squared error (crossvalidation)')    
-        
-        subplot(1,3,3)
-        bmplot(attributeNames, range(1,features_record.shape[1]), -features_record[:,1:])
-        clim(-1.5,0)
-        xlabel('Iteration')
-
-    print('Cross validation fold {0}/{1}'.format(k+1,K))
-    print('Train indices: {0}'.format(train_index))
-    print('Test indices: {0}'.format(test_index))
-    print('Features no: {0}\n'.format(selected_features.size))
-
-    k+=1
 
 
+'''
+# Fitting  SVM to the Training set C=7 kerner='rbf', gamma=0.1 is the current optimal for cross_val_score
+from sklearn.svm import SVC
+SVM_classifier = SVC(C=7, kernel = 'linear',gamma=0.1, random_state = 0)
+SVM_classifier.fit(Xc_train, yc_train)
 
+ '''
+ 
+#PROJECT 2, Classification, points 1-2-3 ----------------------
 
+#LOGISTIC REGRESSION MODEL 
 
-
-# Fitting Random Forest Classification to the Training set
+#Hyper-parameter training and selection
+from sklearn.naive_bayes import GaussianNB
+from sklearn.svm import SVC
 from sklearn.ensemble import RandomForestClassifier
-randc_forest = RandomForestClassifier(n_estimators = 500, criterion = 'entropy', max_depth=4, min_samples_leaf=4, min_samples_split=9, max_features="auto", bootstrap=False, random_state = 0, n_jobs= -1)
-randc_forest.fit(Xc_train, yc_train)
+from sklearn.linear_model import LogisticRegression
+from sklearn import model_selection
+from sklearn.model_selection import GridSearchCV
+from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
+
+# K-fold crossvalidation
+K = 10
+
+
+
+est=np.array([3])
+for j in range(0,1):
+    CV = model_selection.KFold(n_splits=K,shuffle=True, random_state = 42)
+
+    # Initialize variables
+    Error_train_base = np.empty((K,1))
+    Error_test_base = np.empty((K,1))
+    Error_train_GRID_log = np.empty((K,1))
+    Error_test_GRID_log = np.empty((K,1))
+    Error_train_RF = np.empty((K,1))
+    Error_test_RF = np.empty((K,1))
+    Error_train_SVM = np.empty((K,1))
+    Error_test_SVM = np.empty((K,1))
+    Error_train_gnb = np.empty((K,1))
+    Error_test_gnb = np.empty((K,1))
+
+    k=0
+    # Outer loop
+    for train_index, test_index in CV.split(Xc):
+        
+        # extract training and test set for current CV fold
+        Xc_train_GRID_log = Xc[train_index,:]
+        yc_train_GRID_log = yc[train_index]
+        Xc_test_GRID_log = Xc[test_index,:]
+        yc_test_GRID_log = yc[test_index]
+        
+    
+        
+        log_classifier_base = LogisticRegression(fit_intercept=False, n_jobs=-1)
+        log_classifier_base.fit(Xc_train_GRID_log, yc_train_GRID_log)
+        '''
+        gnb = GaussianNB()
+        gnb.fit(Xc_train_GRID_log, yc_train_GRID_log)
+        
+        gnb_test_pred=gnb.predict(Xc_test_GRID_log)
+        gnb_train_pred=gnb.predict(Xc_train_GRID_log)
+        
+        
+        misclass_rate_test_gnb = sum(gnb_test_pred != yc_test_GRID_log) / float(len(gnb_test_pred))
+        misclass_rate_train_gnb = sum(gnb_train_pred != yc_train_GRID_log) / float(len(gnb_train_pred))
+        Error_test_gnb[k], Error_train_gnb[k] = misclass_rate_test_gnb, misclass_rate_train_gnb
+        '''
+        # Fitting Random Forest  to the dataset
+        
+        rand_forest_simple = RandomForestClassifier(n_estimators = 400,  max_depth=4, min_samples_split=9,min_samples_leaf=2, max_features="auto",bootstrap=True, n_jobs= -1, random_state=13)
+        rand_forest_simple.fit(Xc_train_GRID_log, yc_train_GRID_log)
+        #Error calculation for the Random Forest model
+        RF_test_pred = rand_forest_simple.predict(Xc_test_GRID_log)
+        RF_train_pred = rand_forest_simple.predict(Xc_train_GRID_log)
+        
+    
+        misclass_rate_test_RF = sum(RF_test_pred != yc_test_GRID_log) / float(len(RF_test_pred))
+        misclass_rate_train_RF = sum(RF_train_pred != yc_train_GRID_log) / float(len(RF_train_pred))
+        Error_test_RF[k], Error_train_RF[k] = misclass_rate_test_RF, misclass_rate_train_RF
+        
+        # Applying LDA
+    
+        lda = LDA(n_components = 2)
+        Xc_train_LDA = lda.fit_transform(Xc_train_GRID_log, yc_train_GRID_log)
+        Xc_test_LDA = lda.transform(Xc_test_GRID_log)
+       
+        log_classifier = LogisticRegression( C=1,  n_jobs=-1)
+        log_classifier.fit(Xc_train_LDA, yc_train_GRID_log)
+        
+        
+    
+    
+        #Grid search for Logistic Regression
+    
+        parameters = [{'C': [0.00000001,0.0000001,0.000001,0.00001,0.0001,0.001,0.01,0.1,1,10]}]
+        grid_search = GridSearchCV(estimator = log_classifier,
+                                   param_grid = parameters,
+                                   scoring = 'neg_log_loss',
+                                   cv = 10,
+                                   n_jobs = -1)
+        grid_search= grid_search.fit(Xc_train_LDA, yc_train_GRID_log)
+        
+        #Error calculation for the baseline model
+        misclass_rate_test_base = sum(log_classifier_base.predict(Xc_test_GRID_log) != yc_test_GRID_log) / float(len(log_classifier_base.predict(Xc_test_GRID_log)))
+        misclass_rate_train_base = sum(log_classifier_base.predict(Xc_train_GRID_log) != yc_train_GRID_log) / float(len(log_classifier_base.predict(Xc_train_GRID_log)))
+        Error_test_base[k], Error_train_base[k] = misclass_rate_test_base, misclass_rate_train_base
+        #Error calculation for the LDA Logistic Regression model
+        misclass_rate_test = sum(grid_search.predict(Xc_test_LDA) != yc_test_GRID_log) / float(len(grid_search.predict(Xc_test_LDA)))
+        misclass_rate_train = sum(grid_search.predict(Xc_train_LDA) != yc_train_GRID_log) / float(len(grid_search.predict(Xc_train_LDA)))
+        Error_test_GRID_log[k], Error_train_GRID_log[k] = misclass_rate_test, misclass_rate_train
+        
+        
+        best_accuracy_log = grid_search.best_score_
+        best_parameters_log = grid_search.best_params_
+        print('Tuned Log ref CV fold {0}/{1}'.format(k+1,K))
+        print('Train Error: {0}'.format(Error_train_GRID_log[k]))
+        print('Test Error: {0}'.format(Error_test_GRID_log[k]))
+        
+        k+=1
+        
+        
+        
+        '''
+        SVM_classifier = SVC()
+        SVM_classifier.fit(Xc_train_LDA, yc_train_GRID_log)
+        
+        
+        
+        parameters = [{'C': [0.00000001,0.0000001,0.000001,0.00001,0.0001,0.001,0.01,0.1,1,10], 'kernel': ['linear']},
+              {'C': [0.00000001,0.0000001,0.000001,0.00001,0.0001,0.001,0.01,0.1,1,10], 'kernel': ['rbf'], 'gamma': [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]}]
+        grid_search = GridSearchCV(estimator = SVM_classifier,
+                           param_grid = parameters,
+                           scoring = 'neg_log_loss',
+                           cv = 10,
+                           n_jobs = -1)
+        grid_search_SVM = grid_search.fit(Xc_train_LDA, yc_train_GRID_log)
+        best_accuracy_SVM = grid_search.best_score_
+        best_parameters_SVM = grid_search.best_params_
+
+        misclass_rate_test_SVM = sum(grid_search_SVM.predict(Xc_test_LDA) != yc_test_GRID_log) / float(len(grid_search_SVM.predict(Xc_test_LDA)))
+        misclass_rate_train_SVM = sum(grid_search_SVM.predict(Xc_train_LDA) != yc_train_GRID_log) / float(len(grid_search_SVM.predict(Xc_train_LDA)))
+        Error_test_SVM[k], Error_train_SVM[k] = misclass_rate_test_SVM, misclass_rate_train_SVM
+        
+    '''
+        
+        
+    
+        
+    print("For baseline Logistisc Regression: ")
+    print('Train Error Accuracy({0}Kforld): {1}\n'.format(K,Error_train_base.T.mean(1)))
+    print('Test Error Accuracy({0}Kforld): {1}\n'.format(K,Error_test_base.T.mean(1)))   
+        
+    print("For optimized Logistisc Regression: ")
+    print('Train Error Accuracy({0}Kforld): {1}\n'.format(K,Error_train_GRID_log.T.mean(1)))
+    print('Test Error Accuracy({0}Kforld): {1}\n'.format(K,Error_test_GRID_log.T.mean(1)))
+    
+    print("For Random Forests classification: ")
+    print('Train Error Accuracy({0}Kforld): {1}\n'.format(K,Error_train_RF.T.mean()))
+    print('Test Error Accuracy({0}Kforld): {1}\n'.format(K,Error_test_RF.T.mean()))
+    #mean_train = Error_train_GRID_log.mean(1)
+    #mean_test = Error_test_GRID_log.mean(1)
+    C=[0.00000001,0.0000001,0.000001,0.00001,0.0001,0.001,0.01,0.1,1,10]
+    import matplotlib.pyplot as plt
+    plt.figure(figsize=(8,6))
+    plt.semilog(C, Error_train_base*100,label='Baseline train error')
+    plt.semilog(C, Error_test_base*100,label='Baseline test error')
+    plt.semilog(C, Error_train_GRID_log*100,label='Tuned logistic train error')
+    plt.semilog(C, Error_test_GRID_log*100,label='Tuned logistic test error')
+    plt.semilog(C, Error_train_RF.mean(1)*100,label='Simple Random forests train error')
+    plt.semilog(C, Error_test_RF.mean(1)*100,label='Simple Random forests test error')
+    xlabel('Test set')
+    ylabel('Error (%), CV K={0}'.format(K))
+    plt.legend(loc=0,shadow=True, fontsize='small')
+    plt.title('Comparison of models random state {0}'.format(j))
+    plt.grid() 
+    plt.show()
 
 
 
 
-
-
-
-
-
-
+Error_test_gnb
 
 
 

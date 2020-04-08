@@ -6,7 +6,7 @@ import numpy as np
 from sklearn.preprocessing import StandardScaler
 from matplotlib.pylab import figure, plot, xlabel, ylabel, legend, show, boxplot, subplot, title, clim
 from sklearn import model_selection, metrics
-from toolbox_02450 import feature_selector_lr, feature_classifier, bmplot
+from toolbox_02450 import feature_selector_lr, bmplot
 from sklearn.preprocessing import PolynomialFeatures
 from sklearn.pipeline import make_pipeline
 from sklearn.linear_model import Ridge
@@ -432,8 +432,8 @@ Error_train_base = np.empty((K,1))
 Error_test_base = np.empty((K,1))
 Error_train_GRID_log = np.empty((K,1))
 Error_test_GRID_log = np.empty((K,1))
-Error_train_RF = np.empty((K,1))
-Error_test_RF = np.empty((K,1))
+Error_train_SRF = np.empty((K,1))
+Error_test_SRF = np.empty((K,1))
 
 k=0
 # Outer loop
@@ -447,8 +447,21 @@ for train_index, test_index in CV.split(Xc):
     
     #Baseline Logistic Regression model with LDA transformation
     
-    log_classifier_base = LogisticRegression( C=1,  n_jobs=-1)
+    log_classifier_base = LogisticRegression( fit_intercept=False, n_jobs=-1)
     log_classifier_base.fit(Xc_train_GRID_log, yc_train_GRID_log)
+    
+    # Fitting Random Forest  to the dataset
+    
+    rand_forest_simple = RandomForestClassifier(n_estimators = 400, max_depth=4, min_samples_split= 9,min_samples_leaf=2, max_features="auto",bootstrap=True, n_jobs= -1,random_state=13)
+    rand_forest_simple.fit(Xc_train_GRID_log, yc_train_GRID_log)
+    #Error calculation for the Random Forest model
+    RF_test_pred = rand_forest_simple.predict(Xc_test_GRID_log)
+    RF_train_pred = rand_forest_simple.predict(Xc_train_GRID_log)
+    
+
+    misclass_rate_test_SRF = sum(RF_test_pred != yc_test_GRID_log) / float(len(RF_test_pred))
+    misclass_rate_train_SRF = sum(RF_train_pred != yc_train_GRID_log) / float(len(RF_train_pred))
+    Error_test_SRF[k], Error_train_SRF[k] = misclass_rate_test_SRF, misclass_rate_train_SRF
     
     # Applying LDA
 
@@ -456,7 +469,7 @@ for train_index, test_index in CV.split(Xc):
     Xc_train_LDA = lda.fit_transform(Xc_train_GRID_log, yc_train_GRID_log)
     Xc_test_LDA = lda.transform(Xc_test_GRID_log)
    
-    log_classifier = LogisticRegression( C=1,  n_jobs=-1)
+    log_classifier = LogisticRegression( C=1, n_jobs=-1)
     log_classifier.fit(Xc_train_LDA, yc_train_GRID_log)
 
     #Grid search for Logistic Regression
@@ -487,18 +500,7 @@ for train_index, test_index in CV.split(Xc):
     
     
     
-    # Fitting Random Forest  to the dataset
     
-    rand_forest_simple = RandomForestClassifier(n_estimators = 400, max_depth=4, min_samples_split= 9,min_samples_leaf=2, max_features="auto",bootstrap=True, n_jobs= -1)
-    rand_forest_simple.fit(Xc_train_GRID_log, yc_train_GRID_log)
-    #Error calculation for the Random Forest model
-    RF_test_pred = rand_forest_simple.predict(Xc_test_GRID_log)
-    RF_train_pred = rand_forest_simple.predict(Xc_train_GRID_log)
-    
-
-    misclass_rate_test_RF = sum(RF_test_pred != yc_test_GRID_log) / float(len(RF_test_pred))
-    misclass_rate_train_RF = sum(RF_train_pred != yc_train_GRID_log) / float(len(RF_train_pred))
-    Error_test_RF[k], Error_train_RF[k] = misclass_rate_test_RF, misclass_rate_train_RF
     
     k+=1
     
@@ -511,23 +513,24 @@ print('Train Error Accuracy({0}Kforld): {1}\n'.format(K,Error_train_GRID_log.T.m
 print('Test Error Accuracy({0}Kforld): {1}\n'.format(K,Error_test_GRID_log.T.mean(1)))
 
 print("For Random Forests classification: ")
-print('Train Error Accuracy({0}Kforld): {1}\n'.format(K,Error_train_RF.T.mean(1)))
-print('Test Error Accuracy({0}Kforld): {1}\n'.format(K,Error_test_RF.T.mean(1)))
+print('Train Error Accuracy({0}Kforld): {1}\n'.format(K,Error_train_SRF.T.mean()))
+print('Test Error Accuracy({0}Kforld): {1}\n'.format(K,Error_test_SRF.T.mean()))
 #mean_train = Error_train_GRID_log.mean(1)
 #mean_test = Error_test_GRID_log.mean(1)
-C=[0.00000001,0.0000001,0.000001,0.00001,0.0001,0.001,0.01,0.1,1,10]
+C=[1,2,3,4,5,6,7,8,9,10]
 import matplotlib.pyplot as plt
-plt.semilogx(C, Error_train_base*100,label='Baseline train error')
-plt.semilogx(C, Error_test_base*100,label='Baseline test error')
-plt.semilogx(C, Error_train_GRID_log*100,label='Tuned logistic train error')
-plt.semilogx(C, Error_test_GRID_log*100,label='Tuned logistic test error')
-plt.semilogx(C, Error_train_RF.mean(1)*100,label='Simple Random forests train error')
-plt.semilogx(C, Error_test_RF.mean(1)*100,label='Simple Random forests test error')
-xlabel('Regularization factor')
+plt.figure(figsize=(8,6))
+plt.plot(C, Error_train_base*100,label='Baseline train error')
+plt.plot(C, Error_test_base*100,label='Baseline test error')
+plt.plot(C, Error_train_GRID_log*100,label='Tuned logistic train error')
+plt.plot(C, Error_test_GRID_log*100,label='Tuned logistic test error')
+plt.plot(C, Error_train_SRF.mean(1)*100,label='Simple Random forests train error')
+plt.plot(C, Error_test_SRF.mean(1)*100,label='Simple Random forests test error')
+xlabel('Test set')
 ylabel('Error (%), CV K={0}'.format(K))
-legend(loc=0,shadow=True, fontsize='x-small')
-plt.title('Hyper-parameter tweaking for logistic regression')
-
+plt.legend(loc=0,shadow=True, fontsize='small')
+plt.title('Comparison of models')
+plt.grid() 
 plt.show()
 
 
@@ -571,7 +574,7 @@ for train_index, test_index in CV.split(Xc):
     for i, t in enumerate(tc):
         
         # Fitting Random Forest model to the Training set
-        randc_forestCV = RandomForestClassifier(n_estimators = t, criterion = 'entropy', max_depth=3, min_samples_leaf=i+1, min_samples_split=i+2, max_features="auto", bootstrap=False, n_jobs= -1)
+        randc_forestCV = RandomForestClassifier(n_estimators = t,  max_depth=4, min_samples_leaf=i+1, min_samples_split=i+2, max_features="auto", bootstrap=True, n_jobs= -1, random_state=13)
         randc_forestCV.fit(Xc_train_KFold_log, yc_train_KFold_log.ravel())  
 
         rfc_test_pred = randc_forestCV.predict(Xc_test_KFold_log)
@@ -583,17 +586,7 @@ for train_index, test_index in CV.split(Xc):
     
     for a, c in enumerate(lc):
         
-        # Fitting the baseline Logistic Regression model to the Training set
-        log_classifier_intercept = LogisticRegression(fit_intercept=True,  n_jobs=-1)
-        log_classifier_intercept.fit(Xc_train_KFold_log, yc_train_KFold_log.ravel())
-        
-        log_intercept_test_pred = log_classifier_intercept.predict(Xc_test_KFold_log)
-        log_intercept_train_pred = log_classifier_intercept.predict(Xc_train_KFold_log)
-        misclass_rate_test_intercept = sum(log_intercept_test_pred != yc_test_KFold_log) / float(len(log_intercept_test_pred))
-        misclass_rate_train_intercept = sum(log_intercept_train_pred != yc_train_KFold_log) / float(len(log_intercept_train_pred))
-        Error_test_log_intercept[a,j], Error_train_log_intercept[a,j] = misclass_rate_test_intercept, misclass_rate_train_intercept
-        
-    
+       
         
         # Applying LDA
         lda = LDA(n_components = 2)
@@ -616,55 +609,58 @@ for train_index, test_index in CV.split(Xc):
     k+=1
     j+=1
 
-#penalty='elasticnet', , solver='saga',l1_ratio=ratio
-f = figure()
-boxplot(Error_test_log.T)
-xlabel('Log Complexity: Regularization Factor')
-ylabel('Test error across CV folds, K={0})'.format(K))
-title('Logistic Regression with nested CV')
-f = figure()
-plot(lc, Error_train_log.mean(1)*100)
-plot(lc, Error_test_log.mean(1)*100)
-xlabel('Log Complexity: Regularization Factor')
-ylabel('Error (CV K={0})'.format(K))
-legend(['Error_train','Error_test'])
-title('Logistic Regression with nested CV')
-f = figure()
-plot(lc,Error_train_log_intercept.mean(1)*100)
-plot(lc, Error_test_log_intercept.mean(1)*100)
-xlabel(' Baseline Log Complexity: Regularization Factor')
-ylabel('Error (CV K={0})'.format(K))
-legend(['Error_train','Error_test'])
-title('Baseline Logistic Regression with nested CV')
-f = figure()
-boxplot(Error_test_RF.T)
-xlabel('RF Complexity: Estimators-min_samples leaf+Split')
-ylabel('Test error across CV folds, K={0})'.format(K))
-title('Random Forests with nested CV')
-f = figure()
-plot(tc, Error_train_RF.mean(1)*100)
-plot(tc, Error_test_RF.mean(1)*100)
-xlabel('RF Complexity: Estimators-min_samples leaf+Split')
-ylabel('Error (CV K={0})'.format(K))
-legend(['Error_train','Error_test'])
-title('Random Forests with nested CV')
-        
-show() 
  
+
+C=[0.00000001,0.0000001,0.000001,0.00001,0.0001,0.001,0.01,0.1,1,10]
+import matplotlib.pyplot as plt
+plt.figure(figsize=(8,6))
+plt.semilogx(C, Error_train_base*100,label='Baseline train error,with  constant parameters, 10 iterations')
+plt.semilogx(C, Error_test_base*100,label='Baseline test error,with  constant parameters, 10 iterations')
+plt.semilogx(C, Error_train_log.mean(1)*100,label='logistic Regression (tweaked) train error')
+plt.semilogx(C, Error_test_log.mean(1)*100,label='logistic Regression (tweaked) test error')
+plt.semilogx(C, Error_train_RF.mean(1)*100,label='Random forests (tweaked) train error')
+plt.semilogx(C, Error_test_RF.mean(1)*100,label='Random forests (tweaked) test error')
+xlabel('Regularization strength (for logistic), $\log_{10}(\lambda)$, Estimators and leafs for the RFs')
+ylabel('Error (%), CV K={0}'.format(K))
+plt.legend(loc=0,shadow=True, fontsize='small')
+plt.title('Hyper-parameter tweaking of previous models in a nested CV')
+plt.grid() 
+plt.show()
+
+
 
 
 import matplotlib.pyplot as plt
-plt.plot(tc,Error_test_RF.mean(1)*100, marker='o', markerfacecolor='blue', markersize=7, color='skyblue', linewidth=3,label='Random forests' )
-plt.plot(tc, Error_test_log.mean(1)*100, marker='', color='olive', linewidth=3, label= 'Logistic Regression')
-plt.plot(tc,Error_test_log_intercept.mean(1)*100, marker='', color='olive', linewidth=3, linestyle='dashed', label="Baseline")
-xlabel('Complexity')
+plt.figure(figsize=(8,6))
+plt.plot(tc,Error_test_RF.mean(1)*100, marker='o', markerfacecolor='blue', markersize=7, color='skyblue', linewidth=3,label='Random forests tweaked' )
+plt.plot(tc, Error_test_SRF.mean(1)*100, marker='', color='olive', linewidth=3, label= 'Random forests with  constant parameters, 10 iterations')
+#plt.plot(tc,Error_test_log_intercept.mean(1)*100, marker='', color='olive', linewidth=3, linestyle='dashed', label="Baseline")
+xlabel('No. of estimators, increasing leaf parameters')
 ylabel('Error')
 plt.legend(loc=0)
-title('Classification model comparison')
+plt.grid()
+title('Classification pair-wise model comparison, Random Forests')
+
+plt.show()
+
+
+import matplotlib.pyplot as plt
+plt.figure(figsize=(8,6))
+plt.semilogx(C,Error_test_log.mean(1)*100, marker='o', markerfacecolor='blue', markersize=7, color='skyblue', linewidth=3,label='Tweaked Logistic Regression' )
+plt.semilogx(C,Error_test_GRID_log*100 , marker='', color='olive', linewidth=3, label= 'Logistic Regression with constant parameters,10 iterations')
+#plt.plot(tc,Error_test_log_intercept.mean(1)*100, marker='', color='olive', linewidth=3, linestyle='dashed', label="Baseline")
+xlabel('Regularization strength (for logistic), $\log_{10}(\lambda)$')
+ylabel('Error')
+plt.legend(loc=0)
+plt.grid()
+title('Classification pair-wise model comparison, Logistic Regression')
 
 
 
 plt.show()
+
+
+
 
 
 #---------------------------------------------------------------------------------
@@ -697,7 +693,7 @@ for train_index, test_index in CV.split(Xc):
    
     # Compute  error with feature subset selection
     textout = ''
-    selected_features, features_record, loss_record = feature_classifier(Xc_train, yc_train, internal_cross_validation,display=textout)
+    selected_features, features_record, loss_record = feature_selector_lr(Xc_train, yc_train, internal_cross_validation,display=textout)
     #Inner loop
     Features[selected_features,k] = 1
     # .. alternatively you could use module sklearn.feature_selection
@@ -707,7 +703,7 @@ for train_index, test_index in CV.split(Xc):
         
         
          # Fitting Random Forest model to the Training set
-        randc_forestFS = RandomForestClassifier(n_estimators = 400, criterion = 'entropy', max_depth=3, min_samples_leaf=4, min_samples_split=9, max_features="auto", bootstrap=False, n_jobs= -1)
+        randc_forestFS = RandomForestClassifier(n_estimators = 400, criterion = 'entropy', max_depth=3, min_samples_leaf=4, min_samples_split=9, max_features="auto", bootstrap=False, n_jobs= -1, random_state=13)
         randc_forestFS.fit(Xc_train[:,selected_features], yc_train)  
 
         rfc_test_pred_fs = randc_forestFS.predict(Xc_test[:,selected_features])
@@ -804,6 +800,89 @@ xlabel('Crossvalidation fold')
 ylabel('Attribute')
 title('Classification')
 show()
+
+
+
+
+C=[0.00000001,0.0000001,0.000001,0.00001,0.0001,0.001,0.01,0.1,1,10]
+import matplotlib.pyplot as plt
+plt.figure(figsize=(8,6))
+plt.semilogx(C, Error_train_base*100,label='Baseline train error,with constant parameters, 10 iterations')
+plt.semilogx(C, Error_test_base*100,label='Baseline test error,with constant parameters, 10 iterations')
+plt.semilogx(C, Error_train_log.mean(1)*100,label='logistic Regression (tweaked) train error')
+plt.semilogx(C, Error_test_log.mean(1)*100,label='logistic Regression (tweaked) test error')
+plt.semilogx(C, Error_train_logFS.mean(1)*100,label='logistic Regression train error with feature selection')
+plt.semilogx(C, Error_test_logFS.mean(1)*100,label='logistic Regression test error with feature selection')
+xlabel('Regularization strength (for logistic), $\log_{10}(\lambda)$')
+ylabel('Error (%), CV K={0}'.format(K))
+plt.legend(loc=0,shadow=True, fontsize='small')
+plt.title('Comparison of Logistic models')
+plt.grid() 
+plt.show()
+
+
+
+import matplotlib.pyplot as plt
+plt.figure(figsize=(8,6))
+plt.plot(tc, Error_train_SRF*100,label='Random forests train error with constant parameters, 10 iterations')
+plt.plot(tc, Error_test_SRF*100,label='Random forests test error with constant parameters, 10 iterations')
+plt.plot(tc, Error_train_RF.mean(1)*100,label='Random forests (tweaked) train error')
+plt.plot(tc, Error_test_RF.mean(1)*100,label='Random forests (tweaked) test error')
+plt.plot(tc, Error_train_rf.mean(1)*100,label='Random forests train error with feature selection')
+plt.plot(tc, Error_test_rf.mean(1)*100,label='Random forests test error with feature selection')
+xlabel('Estimators and leafs for the RFs')
+ylabel('Error (%), CV K={0}'.format(K))
+plt.legend(loc=0,shadow=True, fontsize='small')
+plt.title('Comparison of Random Forests models')
+plt.grid() 
+plt.show()
+
+
+
+
+C=[1,2,3,4,5,6,7,8,9,10]
+import matplotlib.pyplot as plt
+plt.figure(figsize=(8,6))
+plt.plot(C,Error_test_rf.mean(1)*100, marker='o', markerfacecolor='blue', markersize=7, color='skyblue', linewidth=3,label='Random forests' )
+plt.plot(C, Error_test_logFS.mean(1)*100, marker='', color='olive', linewidth=3, label= 'Logistic Regression')
+#plt.plot(tc,Error_test_log_intercept.mean(1)*100, marker='', color='olive', linewidth=3, linestyle='dashed', label="Baseline")
+xlabel('Iteration')
+ylabel('Error (%)')
+plt.legend(loc=0,shadow=True)
+plt.grid()
+title('Classification model comparison with feature selection')
+
+plt.show()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 # Inspect selected feature coefficients effect on the entire dataset and
 # plot the fitted model residual error as function of each attribute to
