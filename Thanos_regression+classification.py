@@ -164,7 +164,7 @@ for train_index, test_index in CV.split(Xr):
 
         # Fit ridge regression model
         lasso_reg = Lasso(alpha=alph)
-        # lasso_reg = make_pipeline(PolynomialFeatures(2), Lasso(alpha=alph))
+        lasso_reg = make_pipeline(PolynomialFeatures(2), Lasso(alpha=alph))
         lasso_reg.fit(Xr_train_KFold_lin, yr_train_KFold_lin)
         # Compute model output:
         y_train_pred_lasso = lasso_reg.predict(Xr_train_KFold_lin)
@@ -219,7 +219,7 @@ plt.text(1, 10, "Minimum test error: " + str(np.round(np.sqrt(min_error),2)) + '
 plt.xlabel('Regularization strength, $\log_{10}(\lambda)$')
 plt.ylabel('RMSE')
 plt.title('Regression error')
-plt.legend(['Training error','Test error','Test minimum'],loc='upper right')
+plt.legend(loc=0,shadow=True, fontsize='small')
 plt.ylim([5, 15])
 plt.grid()
 plt.show()  
@@ -370,9 +370,11 @@ min_error_index = np.where(test_error_ridge == min_error)[0][0]
 
 
 import matplotlib.pyplot as plt
-plt.figure(figsize=(8,8))
+plt.figure(figsize=(8,12))
 plt.semilogx(lambdas[10:50:4], np.sqrt(train_error_ridge[10:50:4]),label='Ridge train error')
 plt.semilogx(lambdas[10:50:4], np.sqrt(test_error_ridge[10:50:4]),label='Ridge test error')
+plt.semilogx(lambdas[10:50:4], np.sqrt(train_error_lasso[10:50:4]),label='Lasso train error')
+plt.semilogx(lambdas[10:50:4], np.sqrt(test_error_lasso[10:50:4]),label='Lasso test error')
 plt.semilogx(lambdas[10:50:4], np.sqrt(Error_test_lin[0:10].mean(1)),label='Linear train error')
 plt.semilogx(lambdas[10:50:4], np.sqrt(Error_test_lin[0:10].mean(1)),label='Linear test error')
 plt.semilogx(lambdas[10:50:4], np.sqrt(train_error_elastic[10:50:4]),label='ElasticNet train error')

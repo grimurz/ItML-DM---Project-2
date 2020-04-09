@@ -25,6 +25,16 @@ y_c = heart_data[['chd']].to_numpy().squeeze()
 
 bin_data.drop('row.names', axis=1, inplace=True)
 
+#Binarization of tobacco, alcohol in the classification data
+tobacco_binary = bin_data['tobacco']>0.5
+bin_data.insert(2, 'tobacco_binary', tobacco_binary, allow_duplicates = False)
+alcohol_binary =bin_data['alcohol']==0
+bin_data.insert(9, 'alcohol_binary', alcohol_binary, allow_duplicates = False)
+
+bin_data.tobacco_binary=bin_data.tobacco_binary.astype(int)
+bin_data.alcohol_binary=bin_data.alcohol_binary.astype(int)
+
+
 df_r = bin_data.copy()
 df_c = bin_data.copy()
 

@@ -36,11 +36,11 @@ CV = model_selection.KFold(n_splits=K, shuffle=True, random_state=42)
 mse = np.zeros(K)
 
 k=0
-for train_index, test_index in CV.split(X1):
+for train_index, test_index in CV.split(X_r):
 
     # extract training and test set for current CV fold
-    X_train, y_train = X1[train_index,:], y_r[train_index]
-    X_test, y_test = X1[test_index,:], y_r[test_index]
+    X_train, y_train = X_r[train_index,:], y_r[train_index]
+    X_test, y_test = X_r[test_index,:], y_r[test_index]
 
     # Fit ordinary least squares regression model
     lin_reg = lm.LinearRegression(fit_intercept=True)
@@ -78,17 +78,17 @@ mse_train = np.zeros([K,len(lambdas)])
 mse_test = np.zeros([K,len(lambdas)])
 
 k=0
-for train_index, test_index in CV.split(X2):
+for train_index, test_index in CV.split(X_r):
 
     # extract training and test set for current CV fold
-    X_train, y_train = X2[train_index,:], y_r[train_index]
-    X_test, y_test = X2[test_index,:], y_r[test_index]
+    X_train, y_train = X_r[train_index,:], y_r[train_index]
+    X_test, y_test = X_r[test_index,:], y_r[test_index]
 
     # Fit for each lambda
     for i, lam in enumerate(lambdas):
 
         # Fit ridge regression model
-        ridge_reg = make_pipeline(PolynomialFeatures(3), Ridge(alpha=lam))
+        ridge_reg = make_pipeline(PolynomialFeatures(2), Ridge(alpha=lam))
         ridge_reg.fit(X_train, y_train)
 
         # Compute model output:
@@ -147,8 +147,8 @@ https://scikit-learn.org/stable/auto_examples/linear_model/plot_polynomial_inter
 ### REGRESSION, PART B ###
 
 #%% 1. K1/K2 and CV1/CV2 redundant? 
-
-K1 = 10 # 2 # 10
+from sklearn.linear_model import Lasso
+K1 = 5 # 2 # 10
 K2 = 10 # 2 # 10
 
 # Init hyperparameters
@@ -229,7 +229,7 @@ for par_index, test_index in CV1.split(X0):
                                 torch.nn.Tanh(), # 1st transfer function,
 
                                 torch.nn.Linear(h, h),   # torch.nn.ReLU()   torch.nn.Tanh()
-                                torch.nn.ReLU(),
+                                torch.nn.ELU(),
                                 
                                 torch.nn.Linear(h, 1), # n_hidden_units to 1 output neuron
                                 # no final tranfer function, i.e. "linear output"
@@ -260,13 +260,16 @@ for par_index, test_index in CV1.split(X0):
 
         ##### Ridge training #####
         for i, lam in enumerate(lambdas):
-    
-            # Fit ridge regression model
-            ridge_reg = make_pipeline(PolynomialFeatures(3), Ridge(alpha=lam))
-            ridge_reg.fit(X_train, y_train)
+            
+            
+            
+            lasso_reg = Lasso(alpha=lam)
+            lasso_reg = make_pipeline(PolynomialFeatures(2), Lasso(alpha=lam))
+            lasso_reg.fit(X_train, y_train)
+            
     
             # Compute model output:
-            y_val_pred = ridge_reg.predict(X_val)
+            y_val_pred = lasso_reg.predict(X_val)
     
             # Calculate error (RMSE)
             rr_error_val[j,i] = np.sqrt(np.mean((y_val_pred-y_val)**2))
@@ -280,7 +283,7 @@ for par_index, test_index in CV1.split(X0):
     
 
         print('\nK1:',k+1,' K2:',j+1)
-        print('min rr RMSE error:', np.round(min_error_rr_val[j],4))
+        print('min Lasso RMSE error:', np.round(min_error_rr_val[j],4))
         print('min nn RMSE error:', np.round(min_error_nn_val[j],4))
         print('opt lambda:', np.round(lambdas[min_error_rr_index],4))
         print('opt h:', np.round(hidden_units[min_error_nn_index],4))
