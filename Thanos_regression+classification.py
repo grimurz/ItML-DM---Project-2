@@ -164,6 +164,7 @@ for train_index, test_index in CV.split(Xr):
 
         # Fit ridge regression model
         lasso_reg = Lasso(alpha=alph)
+        # lasso_reg = make_pipeline(PolynomialFeatures(2), Lasso(alpha=alph))
         lasso_reg.fit(Xr_train_KFold_lin, yr_train_KFold_lin)
         # Compute model output:
         y_train_pred_lasso = lasso_reg.predict(Xr_train_KFold_lin)
