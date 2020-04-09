@@ -398,6 +398,8 @@ print('\nfinal means:\nNN:', np.round(np.mean(nn_error),2), '\nRR:', np.round(np
 alpha = 0.05
 rho = 1/K1
 
+# p-values for the null hypothesis that the two models have the same performance
+
 # NN vs RR
 nn_rr_p, nn_rr_CI = correlated_ttest(nn_rr, rho, alpha=alpha)
 
@@ -407,15 +409,24 @@ nn_bl_p, nn_bl_CI = correlated_ttest(nn_bl, rho, alpha=alpha)
 # RR vs BL
 rr_bl_p, rr_bl_CI = correlated_ttest(rr_bl, rho, alpha=alpha)
 
-print('\nNN vs RR:', np.round(nn_rr_p,2), np.round(nn_rr_CI,2))
-print('NN vs BL:', np.round(nn_bl_p,2), np.round(nn_bl_CI,2))
-print('RR vs BL:', np.round(rr_bl_p,2), np.round(rr_bl_CI,2))
+print('\nNN vs RR:', np.round(nn_rr_p,3), np.round(nn_rr_CI,2))
+print('NN vs BL:', np.round(nn_bl_p,3), np.round(nn_bl_CI,2))
+print('RR vs BL:', np.round(rr_bl_p,3), np.round(rr_bl_CI,2))
 
 
-# y_nn_test_pred
-# y_test_pred
-# y_bl_pred
+# Taken from https://piazza.com/class/k66atrohlm63kt?cid=183
+# You can use both the CI and the p value to infer about the result. From
+# statistics, if the calculated p-value is less than the alpha value, the
+# zero hypothesis is rejected. That is, there is sufficient evidence to say
+# that model A and B do not have the same performance (one is better than the
+# other). The confidence interval is calculated using the alpha value. For
+# alpha=0.05, the CI constitutes the interval in which we are 95% certain the
+# true difference between model A and B lie. In the above example, the CI
+# includes the value 0. A value of zero indicates that zA=zB (no difference).
+# For there to be a difference, the CI must not include 0. If "z" describes
+# accuracy, then zA is better than zB if the confidence interval is all positive.
 
+# Result: We reject the null hypothesis that NN and BL have the same performance
 
 
 #%% Clean up this mess
