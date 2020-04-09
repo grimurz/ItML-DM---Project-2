@@ -547,72 +547,89 @@ from sklearn.linear_model import LogisticRegression
 from sklearn import model_selection
 
 # K-fold crossvalidation
-K = 10
-CV = model_selection.KFold(n_splits=K,shuffle=True, random_state = 42)
-
+K1 = 10
+K2 = 10
+CV1 = model_selection.KFold(n_splits=K1,shuffle=True, random_state = 42)
+CV2= model_selection.KFold(n_splits=K2,shuffle=True, random_state = 43)
 lc = np.arange(0.025,1.25,0.125)
 tc = np.arange(10,500,50)
 
 
 
-# Initialize variables
-Error_train_log = np.empty((len(lc),K))
-Error_test_log = np.empty((len(lc),K))
-Error_train_log_intercept = np.empty((len(lc),K))
-Error_test_log_intercept = np.empty((len(lc),K))
-Error_train_RF = np.empty((len(tc),K))
-Error_test_RF = np.empty((len(tc),K))
+#Outer Errors
+log_val_error = np.empty(K1)
+intercept_val_error = np.empty(K1)
+rf_val_error = np.empty(K1)
 
-j=0
+
 k=0
-for train_index, test_index in CV.split(Xc):
+for train_index, test_index in CV1.split(Xc):
      
+    #DEFINE SOME ERRORS HERE AND UPDATE THE ERROR CALCULATION ACCORDINGLY
+    # Initialize variables
+    Error_train_log = np.empty((len(lc),K))
+    Error_test_log = np.empty((len(lc),K))
+    Error_train_log_intercept = np.empty((len(lc),K))
+    Error_test_log_intercept = np.empty((len(lc),K))
+    Error_train_RF = np.empty((len(tc),K))
+    Error_test_RF = np.empty((len(tc),K))
     
     
     # extract training and test set for current CV fold
-    Xc_train_KFold_log, yc_train_KFold_log = Xc[train_index,:], yc[train_index]
-    Xc_test_KFold_log, yc_test_KFold_log = Xc[test_index,:], yc[test_index]
+    Xc_train_KFold_outer, yc_train_KFold_outer = Xc[train_index,:], yc[train_index]
+    Xc_test_KFold_outer, yc_test_KFold_outer = Xc[test_index,:], yc[test_index]
     print('Computing RF CV fold: {0}/{1}..'.format(k+1,K))
-    print('Computing logistic CV fold: {0}/{1}..'.format(j+1,K))    
-    for i, t in enumerate(tc):
-        
-        # Fitting Random Forest model to the Training set
-        randc_forestCV = RandomForestClassifier(n_estimators = t,  max_depth=4, min_samples_leaf=i+1, min_samples_split=i+2, max_features="auto", bootstrap=True, n_jobs= -1, random_state=13)
-        randc_forestCV.fit(Xc_train_KFold_log, yc_train_KFold_log.ravel())  
-
-        rfc_test_pred = randc_forestCV.predict(Xc_test_KFold_log)
-        rfc_train_pred = randc_forestCV.predict(Xc_train_KFold_log)
-        misclass_rate_testRF = sum(rfc_test_pred != yc_test_KFold_log) / float(len(rfc_test_pred))
-        misclass_rate_trainRF = sum(rfc_train_pred != yc_train_KFold_log) / float(len(rfc_train_pred))
-        Error_test_RF[i,k], Error_train_RF[i,k] = misclass_rate_testRF, misclass_rate_trainRF
-        
+    print('Computing logistic CV fold: {0}/{1}..'.format(k+1,K))    
     
-    for a, c in enumerate(lc):
+    
+    j=0
+    for train, test in CV2.split(Xc_train_KFold_outer):
         
+        
+        # extract training and test set for current CV fold
+        Xc_train_KFold_log, yc_train_KFold_log = Xc_train_KFold_outer[train,:], yc_train_KFold_outer[train]
+        Xc_test_KFold_log, yc_test_KFold_log = Xc_train_KFold_outer[test,:], yc_train_KFold_outer[test]
+    
+    
+        for i, t in enumerate(tc):
+            
+            # Fitting Random Forest model to the Training set
+            randc_forestCV = RandomForestClassifier(n_estimators = t,  max_depth=4, min_samples_leaf=i+1, min_samples_split=i+2, max_features="auto", bootstrap=True, n_jobs= -1, random_state=13)
+            randc_forestCV.fit(Xc_train_KFold_log, yc_train_KFold_log.ravel())  
+    
+            rfc_test_pred = randc_forestCV.predict(Xc_test_KFold_log)
+            rfc_train_pred = randc_forestCV.predict(Xc_train_KFold_log)
+            misclass_rate_testRF = sum(rfc_test_pred != yc_test_KFold_log) / float(len(rfc_test_pred))
+            misclass_rate_trainRF = sum(rfc_train_pred != yc_train_KFold_log) / float(len(rfc_train_pred))
+            Error_test_RF[i,j], Error_train_RF[i,j] = misclass_rate_testRF, misclass_rate_trainRF
+            
+        
+        for a, c in enumerate(lc):
+            
+           
+            
+            # Applying LDA
+            lda = LDA(n_components = 2)
+            Xc_train_LDA = lda.fit_transform(Xc_train_KFold_log, yc_train_KFold_log)
+            Xc_test_LDA = lda.transform(Xc_test_KFold_log)
+        
+            # Fitting Logistic Regression model to the Training set
+            log_classifier = LogisticRegression( C=c, n_jobs=-1)
+            log_classifier.fit(Xc_train_LDA, yc_train_KFold_log.ravel())
+            
+            log_test_pred = log_classifier.predict(Xc_test_LDA)
+            log_train_pred = log_classifier.predict(Xc_train_LDA)
+            
+            misclass_rate_test = sum(log_test_pred != yc_test_KFold_log) / float(len(log_test_pred))
+            misclass_rate_train = sum(log_train_pred != yc_train_KFold_log) / float(len(log_train_pred))
+            Error_test_log[a,j], Error_train_log[a,j] = misclass_rate_test, misclass_rate_train
+            
+        
+            
        
-        
-        # Applying LDA
-        lda = LDA(n_components = 2)
-        Xc_train_LDA = lda.fit_transform(Xc_train_KFold_log, yc_train_KFold_log)
-        Xc_test_LDA = lda.transform(Xc_test_KFold_log)
-    
-        # Fitting Logistic Regression model to the Training set
-        log_classifier = LogisticRegression( C=c, n_jobs=-1)
-        log_classifier.fit(Xc_train_LDA, yc_train_KFold_log.ravel())
-        
-        log_test_pred = log_classifier.predict(Xc_test_LDA)
-        log_train_pred = log_classifier.predict(Xc_train_LDA)
-        
-        misclass_rate_test = sum(log_test_pred != yc_test_KFold_log) / float(len(log_test_pred))
-        misclass_rate_train = sum(log_train_pred != yc_train_KFold_log) / float(len(log_train_pred))
-        Error_test_log[a,j], Error_train_log[a,j] = misclass_rate_test, misclass_rate_train
-        
-    
-        
-    k+=1
-    j+=1
+        j+=1
 
- 
+    k+=1
 
 C=[0.00000001,0.0000001,0.000001,0.00001,0.0001,0.001,0.01,0.1,1,10]
 import matplotlib.pyplot as plt
