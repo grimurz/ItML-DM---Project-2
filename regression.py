@@ -12,7 +12,7 @@ from sklearn.pipeline import make_pipeline
 from sklearn.feature_selection import SelectKBest, f_regression
 
 import torch
-from toolbox_02450 import train_neural_net
+from toolbox_02450 import *
 
 
 X0 = SelectKBest(f_regression, k=7).fit_transform(X_r, y_r)
@@ -164,6 +164,12 @@ nn_error = np.zeros(K1)  # articial neural network
 rr_error = np.zeros(K1)  # ridge regression
 bl_error = np.zeros(K1)  # baseline
 
+# Init statistic evaluation
+nn_rr = []
+nn_bl = []
+rr_bl = []
+loss = 2
+
 # Cross-validation
 CV1 = model_selection.KFold(n_splits=K1, shuffle=True, random_state=42)
 CV2 = model_selection.KFold(n_splits=K2, shuffle=True, random_state=43) # redundant?
@@ -280,7 +286,7 @@ for par_index, test_index in CV1.split(X0):
         print('opt h:', np.round(hidden_units[min_error_nn_index],4))
     
     
-        # # Temp visualization, to be commented
+        # # # Temp visualization, to be commented
         # plt.figure(figsize=(8,8))
         # plt.plot(hidden_units, mean_nn_error_val)
         # plt.plot(hidden_units[min_error_nn_index], min_error_nn_val[j], 'o')
@@ -358,6 +364,15 @@ for par_index, test_index in CV1.split(X0):
     y_bl_pred = lin_reg.predict(X_test)
     bl_error[k] = np.sqrt(np.mean((y_bl_pred-y_test)**2))  # root mean square error
 
+
+
+    ##### Statistic evaluation #####
+    nn_rr.append( np.mean( np.abs( y_nn_test_pred-y_test ) ** loss - np.abs( y_test_pred-y_test) ** loss ) )
+    nn_bl.append( np.mean( np.abs( y_nn_test_pred-y_test ) ** loss - np.abs( y_bl_pred-y_test) ** loss ) )
+    rr_bl.append( np.mean( np.abs( y_test_pred-y_test ) ** loss - np.abs( y_bl_pred-y_test) ** loss ) )
+
+
+
     k+=1
     
     
@@ -372,11 +387,6 @@ print('optimal lambdas:', np.round(lambda_opt,2))
 print('\nfinal means:\nNN:', np.round(np.mean(nn_error),2), '\nRR:', np.round(np.mean(rr_error),2), '\nBL:', np.round(np.mean(bl_error),2))
 
 
-del i, j, K1, K2, y_bl_pred, lam, N, max_iter
-del par_index, train_index, val_index, test_index
-del min_error_nn_index, min_error_rr_index, n_replicates
-del hidden_units, lambdas
-
 
 #%% 2.
 
@@ -385,11 +395,35 @@ del hidden_units, lambdas
 
 #%% 3.
 
+alpha = 0.05
+rho = 1/K1
+
+# NN vs RR
+nn_rr_p, nn_rr_CI = correlated_ttest(nn_rr, rho, alpha=alpha)
+
+# NN vs BL
+nn_bl_p, nn_bl_CI = correlated_ttest(nn_bl, rho, alpha=alpha)
+
+# RR vs BL
+rr_bl_p, rr_bl_CI = correlated_ttest(rr_bl, rho, alpha=alpha)
+
+print('\nNN vs RR:', np.round(nn_rr_p,2), np.round(nn_rr_CI,2))
+print('NN vs BL:', np.round(nn_bl_p,2), np.round(nn_bl_CI,2))
+print('RR vs BL:', np.round(rr_bl_p,2), np.round(rr_bl_CI,2))
+
+
+# y_nn_test_pred
+# y_test_pred
+# y_bl_pred
 
 
 
+#%% Clean up this mess
 
-
+del i, j, K1, K2, y_bl_pred, lam, N, max_iter
+del par_index, train_index, val_index, test_index
+del min_error_nn_index, min_error_rr_index, n_replicates
+del hidden_units, lambdas
 
 
 #%% Copy/paste bin, junk and other stuff
