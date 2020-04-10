@@ -4,7 +4,7 @@ from load_data import X_r, y_r
 import numpy as np
 import matplotlib.pyplot as plt
 import sklearn.linear_model as lm
-from sklearn.linear_model import Ridge
+from sklearn.linear_model import Ridge, Lasso
 # from sklearn.model_selection import train_test_split
 from sklearn import model_selection
 from sklearn.preprocessing import PolynomialFeatures
@@ -267,6 +267,11 @@ for par_index, test_index in CV1.split(X0):
             lasso_reg = make_pipeline(PolynomialFeatures(2), Lasso(alpha=lam))
             lasso_reg.fit(X_train, y_train)
             
+    
+            # Fit ridge regression model
+            # ridge_reg = make_pipeline(PolynomialFeatures(3), Ridge(alpha=lam))
+            ridge_reg = make_pipeline(PolynomialFeatures(3), Lasso(alpha=lam, tol=0.2))          # WHOOP! LASSO!
+            ridge_reg.fit(X_train, y_train)
     
             # Compute model output:
             y_val_pred = lasso_reg.predict(X_val)
