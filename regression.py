@@ -261,17 +261,14 @@ for par_index, test_index in CV1.split(X0):
         ##### Ridge training #####
         for i, lam in enumerate(lambdas):
             
-            
-            
             lasso_reg = Lasso(alpha=lam)
             lasso_reg = make_pipeline(PolynomialFeatures(2), Lasso(alpha=lam))
             lasso_reg.fit(X_train, y_train)
-            
     
-            # Fit ridge regression model
-            # ridge_reg = make_pipeline(PolynomialFeatures(3), Ridge(alpha=lam))
-            ridge_reg = make_pipeline(PolynomialFeatures(3), Lasso(alpha=lam, tol=0.2))          # WHOOP! LASSO!
-            ridge_reg.fit(X_train, y_train)
+            # # Fit ridge regression model
+            # # ridge_reg = make_pipeline(PolynomialFeatures(3), Ridge(alpha=lam))
+            # ridge_reg = make_pipeline(PolynomialFeatures(3), Lasso(alpha=lam, tol=0.2))          # WHOOP! LASSO!
+            # ridge_reg.fit(X_train, y_train)
     
             # Compute model output:
             y_val_pred = lasso_reg.predict(X_val)
