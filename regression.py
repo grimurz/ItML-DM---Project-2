@@ -5,7 +5,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 import sklearn.linear_model as lm
 from sklearn.linear_model import Ridge, Lasso
-# from sklearn.model_selection import train_test_split
 from sklearn import model_selection
 from sklearn.preprocessing import PolynomialFeatures
 from sklearn.pipeline import make_pipeline
@@ -148,12 +147,11 @@ https://scikit-learn.org/stable/auto_examples/linear_model/plot_polynomial_inter
 
 #%% 1. K1/K2 and CV1/CV2 redundant? 
 from sklearn.linear_model import Lasso
-K1 = 5 # 10
-K2 = 5 # 10
+K1 = 10 # 5 # 10
+K2 = 10 # 5 # 10
 
 # Init hyperparameters
 hidden_units = np.arange(start = 1, stop = 10, step = 2)
-# hidden_units = np.arange(start = 1, stop = 10, step = 1)
 lambdas = np.logspace(-3, 4, 50)
 
 # Init optimal hyperparameters
@@ -181,7 +179,7 @@ CV2 = model_selection.KFold(n_splits=K2, shuffle=True, random_state=43) # redund
 N, M = X_r.shape
 
 # Parameters for neural network 
-n_replicates = 2#5       # number of networks trained in each k-fold
+n_replicates = 1       # number of networks trained in each k-fold
 max_iter = 5000
 
 
@@ -293,17 +291,17 @@ for par_index, test_index in CV1.split(X_r):
         print('opt h:', np.round(hidden_units[min_error_nn_index],4))
     
     
-        # # Temp visualization, to be commented
-        plt.figure(figsize=(8,8))
-        plt.plot(hidden_units, mean_nn_error_val)
-        plt.plot(hidden_units[min_error_nn_index], min_error_nn_val[j], 'o')
-        plt.xlabel('Hidden units')
-        plt.ylabel('RMSE')
-        plt.title('ANN - error')
-        plt.legend(['Val error','Val minimum'],loc='upper right')
-        plt.ylim([0, 30])
-        plt.grid()
-        plt.show()  
+        # # # Temp visualization, to be commented
+        # plt.figure(figsize=(8,8))
+        # plt.plot(hidden_units, mean_nn_error_val)
+        # plt.plot(hidden_units[min_error_nn_index], min_error_nn_val[j], 'o')
+        # plt.xlabel('Hidden units')
+        # plt.ylabel('RMSE')
+        # plt.title('ANN - error')
+        # plt.legend(['Val error','Val minimum'],loc='upper right')
+        # plt.ylim([0, 30])
+        # plt.grid()
+        # plt.show()  
         
         # plt.figure(figsize=(8,8))
         # plt.semilogx(lambdas, mean_rr_error_val)
@@ -391,14 +389,14 @@ print('nn val:', np.round(np.mean(nn_error_val_tot),4))
 print('rr val:', np.round(np.mean(rr_error_val_tot),4))
     
 # Take mean from all three methods and compare (NO PEEKING)
-# print('\n')
-# print('estimated nn error:', np.round(nn_error,2))
-# print('estimated rr error:', np.round(rr_error,2))
-# print('estimated bl error:', np.round(bl_error,2))
-# print('optimal hidden units:', h_opt)
-# print('optimal lambdas:', np.round(lambda_opt,2))
+print('\n')
+print('estimated nn error:', np.round(nn_error,2))
+print('estimated rr error:', np.round(rr_error,2))
+print('estimated bl error:', np.round(bl_error,2))
+print('optimal hidden units:', h_opt)
+print('optimal lambdas:', np.round(lambda_opt,2))
 
-# print('\nfinal means:\nNN:', np.round(np.mean(nn_error),2), '\nRR:', np.round(np.mean(rr_error),2), '\nBL:', np.round(np.mean(bl_error),2))
+print('\nfinal means:\nNN:', np.round(np.mean(nn_error),2), '\nRR:', np.round(np.mean(rr_error),2), '\nBL:', np.round(np.mean(bl_error),2))
 
 
 
@@ -414,18 +412,18 @@ rho = 1/K1
 
 # p-values for the null hypothesis that the two models have the same performance
 
-# # NN vs RR
-# nn_rr_p, nn_rr_CI = correlated_ttest(nn_rr, rho, alpha=alpha)
+# NN vs RR
+nn_rr_p, nn_rr_CI = correlated_ttest(nn_rr, rho, alpha=alpha)
 
-# # NN vs BL
-# nn_bl_p, nn_bl_CI = correlated_ttest(nn_bl, rho, alpha=alpha)
+# NN vs BL
+nn_bl_p, nn_bl_CI = correlated_ttest(nn_bl, rho, alpha=alpha)
 
-# # RR vs BL
-# rr_bl_p, rr_bl_CI = correlated_ttest(rr_bl, rho, alpha=alpha)
+# RR vs BL
+rr_bl_p, rr_bl_CI = correlated_ttest(rr_bl, rho, alpha=alpha)
 
-# print('\nNN vs RR:', np.round(nn_rr_p,3), np.round(nn_rr_CI,2))
-# print('NN vs BL:', np.round(nn_bl_p,3), np.round(nn_bl_CI,2))
-# print('RR vs BL:', np.round(rr_bl_p,3), np.round(rr_bl_CI,2))
+print('\nNN vs RR:', np.round(nn_rr_p,3), np.round(nn_rr_CI,2))
+print('NN vs BL:', np.round(nn_bl_p,3), np.round(nn_bl_CI,2))
+print('RR vs BL:', np.round(rr_bl_p,3), np.round(rr_bl_CI,2))
 
 
 # Taken from https://piazza.com/class/k66atrohlm63kt?cid=183
