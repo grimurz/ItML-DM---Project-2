@@ -541,45 +541,56 @@ plt.show()
 
 
 #%% Nested CV of the tested models
-
+from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
 from sklearn.ensemble import RandomForestClassifier 
 from sklearn.linear_model import LogisticRegression
+from sklearn.linear_model import LinearRegression
 from sklearn import model_selection
-
+import math
 # K-fold crossvalidation
 K1 = 2 # 10
-K2 = 3 # 10
+K2 = 5 # 10
 CV1 = model_selection.KFold(n_splits=K1,shuffle=True, random_state = 42)
 CV2= model_selection.KFold(n_splits=K2,shuffle=True, random_state = 43)
-lc = np.arange(0.025,1.25,0.125)
-tc = np.arange(10,500,50)
+lambdas = np.logspace(-3, 4, 50)
+tc = np.arange(10,510,10)
 
-
-
+# Init optimal hyperparameters
+tree_opt = np.zeros(K1)
+lambda_opt = np.zeros(K1)
+leaf_opt=np.zeros(K1)
 #Outer Errors
 log_val_error = np.empty(K1)
 intercept_val_error = np.empty(K1)
 rf_val_error = np.empty(K1)
 
+rf_error_val_tot = np.zeros(K1)
+rr_error_val_tot = np.zeros(K1)
+leaf_values=np.array([1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,14,13,12,11,10,9,8,7,6,5,4,5,6,7,8,9,10,11,12,11,10])
 
 k=0
 for train_index, test_index in CV1.split(Xc):
      
-    #DEFINE SOME ERRORS HERE AND UPDATE THE ERROR CALCULATION ACCORDINGLY
+   
     # Initialize variables (train/val)
-    Error_train_log = np.empty((len(lc),K))
-    Error_test_log = np.empty((len(lc),K))
-    Error_train_log_intercept = np.empty((len(lc),K))
-    Error_test_log_intercept = np.empty((len(lc),K))
-    Error_train_RF = np.empty((len(tc),K))
-    Error_test_RF = np.empty((len(tc),K))
-    
-    
+    Error_train_log = np.empty((len(lambdas),K2))
+    Error_test_log = np.empty((len(lambdas),K2))
+    Error_train_log_intercept = np.empty((len(lambdas),K2))
+    Error_test_log_intercept = np.empty((len(lambdas),K2))
+    Error_train_RF = np.empty((len(tc),K2))
+    Error_test_RF = np.empty((len(tc),K2))
+    # Init min error
+    min_error_rf_val = np.zeros(K2)
+    min_error_rr_val = np.zeros(K2)
+    # Init optimal lambda & optimal h
+    tree_opt_val= np.zeros(K2)
+    lambda_opt_val = np.zeros(K2)
+    leaf_opt_val = np.zeros(K2)
     # extract training and test set for current CV fold
     Xc_train_KFold_outer, yc_train_KFold_outer = Xc[train_index,:], yc[train_index]
     Xc_test_KFold_outer, yc_test_KFold_outer = Xc[test_index,:], yc[test_index]
-    print('Computing RF CV fold: {0}/{1}..'.format(k+1,K))
-    print('Computing logistic CV fold: {0}/{1}..'.format(k+1,K))    
+    print('Computing RF CV fold: {0}/{1}..'.format(k+1,K1))
+    print('Computing logistic CV fold: {0}/{1}..'.format(k+1,K1))    
     
     
     j=0
@@ -590,21 +601,31 @@ for train_index, test_index in CV1.split(Xc):
         Xc_train_KFold_log, yc_train_KFold_log = Xc_train_KFold_outer[train,:], yc_train_KFold_outer[train]
         Xc_test_KFold_log, yc_test_KFold_log = Xc_train_KFold_outer[test,:], yc_train_KFold_outer[test]
     
-    
+         # Fitting Random Forest model to the Training set
         for i, t in enumerate(tc):
+            if leaf_values[i] <5:
+                randc_forestCV = RandomForestClassifier(n_estimators = t,  max_depth=4, min_samples_leaf=2, min_samples_split=2, max_features="auto", bootstrap=True, n_jobs= -1, random_state=13)
+                randc_forestCV.fit(Xc_train_KFold_log, yc_train_KFold_log.ravel())
             
-            # Fitting Random Forest model to the Training set
-            randc_forestCV = RandomForestClassifier(n_estimators = t,  max_depth=4, min_samples_leaf=i+1, min_samples_split=i+2, max_features="auto", bootstrap=True, n_jobs= -1, random_state=13)
-            randc_forestCV.fit(Xc_train_KFold_log, yc_train_KFold_log.ravel())  
-    
+            else:
+                randc_forestCV = RandomForestClassifier(n_estimators = t,  max_depth=4, min_samples_leaf=leaf_values[i]+2, min_samples_split=leaf_values[i]-3, max_features="auto", bootstrap=True, n_jobs= -1, random_state=13)
+                randc_forestCV.fit(Xc_train_KFold_log, yc_train_KFold_log.ravel())  
+            
             rfc_test_pred = randc_forestCV.predict(Xc_test_KFold_log)
             rfc_train_pred = randc_forestCV.predict(Xc_train_KFold_log)
             misclass_rate_testRF = sum(rfc_test_pred != yc_test_KFold_log) / float(len(rfc_test_pred))
             misclass_rate_trainRF = sum(rfc_train_pred != yc_train_KFold_log) / float(len(rfc_train_pred))
             Error_test_RF[i,j], Error_train_RF[i,j] = misclass_rate_testRF, misclass_rate_trainRF
             
+        mean_rf_error_val = np.mean(Error_test_RF,axis=0)
+        min_error_rf_val[j] = np.min(mean_rf_error_val)
+
+        min_error_rf_index = np.where(mean_rf_error_val == min_error_rf_val[j])[0][0]
+        tree_opt_val[j] = tc[min_error_rf_index]
+        leaf_opt_val[j] = leaf_values[min_error_rf_index]
         
-        for a, c in enumerate(lc):
+        
+        for a, c in enumerate(lambdas):
             
            
             
@@ -624,13 +645,86 @@ for train_index, test_index in CV1.split(Xc):
             misclass_rate_train = sum(log_train_pred != yc_train_KFold_log) / float(len(log_train_pred))
             Error_test_log[a,j], Error_train_log[a,j] = misclass_rate_test, misclass_rate_train
             
-        
             
-       
-        j+=1
+        mean_rr_error_val = np.mean(Error_test_log,axis=0)
+        min_error_rr_val[j] = np.min(mean_rr_error_val)
 
+        min_error_rr_index = np.where(mean_rr_error_val == min_error_rr_val[j])[0][0]
+        lambda_opt_val[j] = lambdas[min_error_rr_index]
+    
+        print('\nK1:',k+1,' K2:',j+1)
+        print('min rr error:', np.round(min_error_rr_val[j],4))
+        print('min rf error:', np.round(min_error_rf_val[j],4))
+        print('opt lambda:', np.round(lambdas[min_error_rr_index],4))
+        print('opt number of estimators:', np.round(tc[min_error_rf_index],4))    
+        print('opt leaf:', np.round(leaf_values[min_error_rf_index],4)) 
+        
+        j+=1
+        
+    leaf_opt[k] =np.max(leaf_opt_val).astype(int)   
+    tree_opt[k]=np.max(tree_opt_val).astype(int) 
+    lambda_opt[k] = np.mean(lambda_opt_val)
+
+    # Collect mean of min errors
+    rf_error_val_tot[k] = np.mean(min_error_rf_val)
+    rr_error_val_tot[k] = np.mean(min_error_rr_val)
+    
+    
+    print('\nmean rr val error', np.round(np.mean(min_error_rr_val),4))
+    print('mean rf val error', np.round(np.mean(min_error_rf_val),4))
+    print('mean lambda', np.round(lambda_opt[k],4))
+    leaf_optimal_samples=math.ceil(leaf_opt[k]+1)
+    leaf_optimal_split =math.ceil(leaf_opt[k]/2+1)
+  
+    #Random forests testing
+    if leaf_optimal_split==1:
+        leaf_optimal_split=2
+        randc_forest2CV = RandomForestClassifier(n_estimators = int(tree_opt[k]),  max_depth=4, min_samples_leaf=leaf_optimal_samples, min_samples_split=leaf_optimal_split, max_features="auto", bootstrap=True, n_jobs= -1, random_state=13)
+        randc_forest2CV.fit(Xc_train_KFold_outer, yc_train_KFold_outer.ravel())  
+        y_test_pred_rf = randc_forest2CV.predict(Xc_test_KFold_outer)
+        misclass_rate_test_rf = sum(y_test_pred_rf != yc_test_KFold_outer) / float(len(y_test_pred_rf))
+        rf_val_error[k] = misclass_rate_test_rf
+    else:
+        randc_forest2CV = RandomForestClassifier(n_estimators = int(tree_opt[k]),  max_depth=4, min_samples_leaf=leaf_optimal_samples, min_samples_split=leaf_optimal_split, max_features="auto", bootstrap=True, n_jobs= -1, random_state=13)
+        randc_forest2CV.fit(Xc_train_KFold_outer, yc_train_KFold_outer.ravel())  
+        y_test_pred_rf = randc_forest2CV.predict(Xc_test_KFold_outer)
+        misclass_rate_test_rf = sum(y_test_pred_rf != yc_test_KFold_outer) / float(len(y_test_pred_rf))
+        rf_val_error[k] = misclass_rate_test_rf
+        
+        
+     # Ridge testing
+    ridge_reg = make_pipeline(PolynomialFeatures(3), Ridge(alpha=lambda_opt[k]))
+    ridge_reg.fit(Xc_train_KFold_outer, yc_train_KFold_outer)
+    y_test_pred = ridge_reg.predict(Xc_test_KFold_outer)
+    misclass_rate_test_val = sum(y_test_pred != yc_test_KFold_outer) / float(len(y_test_pred))
+    log_val_error[k] = misclass_rate_test_val
+
+
+    # Baseline testing
+    lin_reg = LinearRegression(n_jobs=-1)
+    lin_reg.fit(Xc_train_KFold_outer, yc_train_KFold_outer)
+    y_bl_pred = lin_reg.predict(Xc_test_KFold_outer)
+    misclass_rate_test_intercept=sum(y_bl_pred != yc_test_KFold_outer) / float(len(y_bl_pred))
+    intercept_val_error[k] = misclass_rate_test_intercept
+    
+    
     k+=1
 
+
+print('\nFinal validation error:')
+print('rf val:', np.round(np.mean(rf_error_val_tot),4))
+print('rr val:', np.round(np.mean(rr_error_val_tot),4))
+    
+# Take mean from all three methods and compare (NO PEEKING)
+print('\n')
+print('estimated rf error:', np.round(rf_val_error,3))
+print('estimated rr error:', np.round(log_val_error,3))
+print('estimated bl error:', np.round(intercept_val_error,3))
+print('optimal rf estimator units:', tree_opt)
+print('optimal rf leaf units:', leaf_opt)
+print('optimal lambdas:', np.round(lambda_opt,3))
+
+'''
 C=[0.00000001,0.0000001,0.000001,0.00001,0.0001,0.001,0.01,0.1,1,10]
 import matplotlib.pyplot as plt
 plt.figure(figsize=(8,6))
@@ -680,7 +774,7 @@ title('Classification pair-wise model comparison, Logistic Regression')
 plt.show()
 
 
-
+    '''
 
 
 #%%---------------------------------------------------------------------------------

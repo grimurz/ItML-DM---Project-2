@@ -147,7 +147,7 @@ https://scikit-learn.org/stable/auto_examples/linear_model/plot_polynomial_inter
 
 #%% 1. K1/K2 and CV1/CV2 redundant? 
 from sklearn.linear_model import Lasso
-K1 = 10 # 5 # 10
+K1 = 1 # 5 # 10
 K2 = 10 # 5 # 10
 
 # Init hyperparameters
