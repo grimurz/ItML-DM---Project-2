@@ -82,7 +82,7 @@ del scaler_binary, scaler_reg, fam_history, fh, heart_data, unique_hist, history
 
 
 
-#----------------------Regression Models-------------------------------------
+#%%----------------------Regression Models-------------------------------------
 
 
 
@@ -400,7 +400,7 @@ plt.show()
 
 
 
-#----------------------Classfication Models-----------------------------------
+#%% ----------------------Classfication Models-----------------------------------
 
 
 
@@ -507,16 +507,16 @@ for train_index, test_index in CV.split(Xc):
     
     k+=1
     
-print("For baseline Logistisc Regression: ")
-print('Train Error Accuracy({0}Kforld): {1}\n'.format(K,Error_train_base.T.mean(1)))
+print("\nFor baseline Logistisc Regression: ")
+print('Train Error Accuracy({0}Kforld): {1}'.format(K,Error_train_base.T.mean(1)))
 print('Test Error Accuracy({0}Kforld): {1}\n'.format(K,Error_test_base.T.mean(1)))   
     
 print("For optimized Logistisc Regression: ")
-print('Train Error Accuracy({0}Kforld): {1}\n'.format(K,Error_train_GRID_log.T.mean(1)))
+print('Train Error Accuracy({0}Kforld): {1}'.format(K,Error_train_GRID_log.T.mean(1)))
 print('Test Error Accuracy({0}Kforld): {1}\n'.format(K,Error_test_GRID_log.T.mean(1)))
 
 print("For Random Forests classification: ")
-print('Train Error Accuracy({0}Kforld): {1}\n'.format(K,Error_train_SRF.T.mean()))
+print('Train Error Accuracy({0}Kforld): {1}'.format(K,Error_train_SRF.T.mean()))
 print('Test Error Accuracy({0}Kforld): {1}\n'.format(K,Error_test_SRF.T.mean()))
 #mean_train = Error_train_GRID_log.mean(1)
 #mean_test = Error_test_GRID_log.mean(1)
@@ -540,15 +540,15 @@ plt.show()
 #0.0000001,0.000001,0.00001,0.0001,0.001,0.01,0.1,1,10,100
 
 
-#Nested CV of the tested models
+#%% Nested CV of the tested models
 
 from sklearn.ensemble import RandomForestClassifier 
 from sklearn.linear_model import LogisticRegression
 from sklearn import model_selection
 
 # K-fold crossvalidation
-K1 = 10
-K2 = 10
+K1 = 2 # 10
+K2 = 3 # 10
 CV1 = model_selection.KFold(n_splits=K1,shuffle=True, random_state = 42)
 CV2= model_selection.KFold(n_splits=K2,shuffle=True, random_state = 43)
 lc = np.arange(0.025,1.25,0.125)
@@ -566,7 +566,7 @@ k=0
 for train_index, test_index in CV1.split(Xc):
      
     #DEFINE SOME ERRORS HERE AND UPDATE THE ERROR CALCULATION ACCORDINGLY
-    # Initialize variables
+    # Initialize variables (train/val)
     Error_train_log = np.empty((len(lc),K))
     Error_test_log = np.empty((len(lc),K))
     Error_train_log_intercept = np.empty((len(lc),K))
@@ -683,7 +683,7 @@ plt.show()
 
 
 
-#---------------------------------------------------------------------------------
+#%%---------------------------------------------------------------------------------
 
 #TAKE THE BEST MODELS FROM ABOVE AND FIND THE BEST COMBINATIONS OF FEATURES BELOW
 

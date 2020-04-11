@@ -15,14 +15,14 @@ import torch
 from toolbox_02450 import *
 
 
-X0 = SelectKBest(f_regression, k=7).fit_transform(X_r, y_r)
+# X0 = SelectKBest(f_regression, k=7).fit_transform(X_r, y_r)
 
-# X1 = SelectKBest(mutual_info_regression, k=9).fit_transform(X_r, y_r)
-X1 = SelectKBest(f_regression, k=7).fit_transform(X_r, y_r)
-# X1 = X_r
+# # X1 = SelectKBest(mutual_info_regression, k=9).fit_transform(X_r, y_r)
+# X1 = SelectKBest(f_regression, k=7).fit_transform(X_r, y_r)
+# # X1 = X_r
 
-X2 = SelectKBest(f_regression, k=7).fit_transform(X_r, y_r)
-# X2 = X_r
+# X2 = SelectKBest(f_regression, k=7).fit_transform(X_r, y_r)
+# # X2 = X_r
 
 ### REGRESSION, PART A ###
 
@@ -148,11 +148,12 @@ https://scikit-learn.org/stable/auto_examples/linear_model/plot_polynomial_inter
 
 #%% 1. K1/K2 and CV1/CV2 redundant? 
 from sklearn.linear_model import Lasso
-K1 = 10 # 2 # 10
-K2 = 10 # 2 # 10
+K1 = 5 # 10
+K2 = 5 # 10
 
 # Init hyperparameters
-hidden_units = np.arange(start = 1, stop = 10, step = 1) # np.arange(start = 1, stop = 100, step = 25) # 
+hidden_units = np.arange(start = 1, stop = 10, step = 2)
+# hidden_units = np.arange(start = 1, stop = 10, step = 1)
 lambdas = np.logspace(-3, 4, 50)
 
 # Init optimal hyperparameters
@@ -163,6 +164,8 @@ lambda_opt = np.zeros(K1)
 nn_error = np.zeros(K1)  # articial neural network
 rr_error = np.zeros(K1)  # ridge regression
 bl_error = np.zeros(K1)  # baseline
+nn_error_val_tot = np.zeros(K1)
+rr_error_val_tot = np.zeros(K1)
 
 # Init statistic evaluation
 nn_rr = []
@@ -178,7 +181,7 @@ CV2 = model_selection.KFold(n_splits=K2, shuffle=True, random_state=43) # redund
 N, M = X_r.shape
 
 # Parameters for neural network 
-n_replicates = 5       # number of networks trained in each k-fold
+n_replicates = 2#5       # number of networks trained in each k-fold
 max_iter = 5000
 
 
@@ -261,17 +264,16 @@ for par_index, test_index in CV1.split(X_r):
         ##### Ridge training #####
         for i, lam in enumerate(lambdas):
             
-            lasso_reg = Lasso(alpha=lam)
-            lasso_reg = make_pipeline(PolynomialFeatures(2), Lasso(alpha=lam))
-            lasso_reg.fit(X_train, y_train)
+            # lasso_reg = make_pipeline(PolynomialFeatures(2), Lasso(alpha=lam))
+            # lasso_reg.fit(X_train, y_train)
     
-            # # Fit ridge regression model
-            # # ridge_reg = make_pipeline(PolynomialFeatures(3), Ridge(alpha=lam))
-            # ridge_reg = make_pipeline(PolynomialFeatures(3), Lasso(alpha=lam, tol=0.2))          # WHOOP! LASSO!
-            # ridge_reg.fit(X_train, y_train)
+            # Fit ridge regression model
+            ridge_reg = make_pipeline(PolynomialFeatures(2), Ridge(alpha=lam))
+            ridge_reg.fit(X_train, y_train)
     
             # Compute model output:
-            y_val_pred = lasso_reg.predict(X_val)
+            # y_val_pred = lasso_reg.predict(X_val)
+            y_val_pred = ridge_reg.predict(X_val)
     
             # Calculate error (RMSE)
             rr_error_val[j,i] = np.sqrt(np.mean((y_val_pred-y_val)**2))
@@ -285,23 +287,23 @@ for par_index, test_index in CV1.split(X_r):
     
 
         print('\nK1:',k+1,' K2:',j+1)
-        print('min Lasso RMSE error:', np.round(min_error_rr_val[j],4))
+        print('min rr RMSE error:', np.round(min_error_rr_val[j],4))
         print('min nn RMSE error:', np.round(min_error_nn_val[j],4))
         print('opt lambda:', np.round(lambdas[min_error_rr_index],4))
         print('opt h:', np.round(hidden_units[min_error_nn_index],4))
     
     
-        # # # Temp visualization, to be commented
-        # plt.figure(figsize=(8,8))
-        # plt.plot(hidden_units, mean_nn_error_val)
-        # plt.plot(hidden_units[min_error_nn_index], min_error_nn_val[j], 'o')
-        # plt.xlabel('Hidden units')
-        # plt.ylabel('RMSE')
-        # plt.title('ANN - error')
-        # plt.legend(['Val error','Val minimum'],loc='upper right')
-        # plt.ylim([0, 30])
-        # plt.grid()
-        # plt.show()  
+        # # Temp visualization, to be commented
+        plt.figure(figsize=(8,8))
+        plt.plot(hidden_units, mean_nn_error_val)
+        plt.plot(hidden_units[min_error_nn_index], min_error_nn_val[j], 'o')
+        plt.xlabel('Hidden units')
+        plt.ylabel('RMSE')
+        plt.title('ANN - error')
+        plt.legend(['Val error','Val minimum'],loc='upper right')
+        plt.ylim([0, 30])
+        plt.grid()
+        plt.show()  
         
         # plt.figure(figsize=(8,8))
         # plt.semilogx(lambdas, mean_rr_error_val)
@@ -320,6 +322,10 @@ for par_index, test_index in CV1.split(X_r):
 
     h_opt[k] = np.round(np.mean(h_opt_val)).astype(int)
     lambda_opt[k] = np.mean(lambda_opt_val)
+
+    # Collect mean of min errors
+    nn_error_val_tot[k] = np.mean(min_error_nn_val)
+    rr_error_val_tot[k] = np.mean(min_error_rr_val)
 
 
     print('\nmean rr val error', np.round(np.mean(min_error_rr_val),4))
@@ -380,16 +386,19 @@ for par_index, test_index in CV1.split(X_r):
 
     k+=1
     
+print('\nFinal validation error:')
+print('nn val:', np.round(np.mean(nn_error_val_tot),4))
+print('rr val:', np.round(np.mean(rr_error_val_tot),4))
     
-# Take mean from all three methods and compare
-print('\n')
-print('estimated nn error:', np.round(nn_error,2))
-print('estimated rr error:', np.round(rr_error,2))
-print('estimated bl error:', np.round(bl_error,2))
-print('optimal hidden units:', h_opt)
-print('optimal lambdas:', np.round(lambda_opt,2))
+# Take mean from all three methods and compare (NO PEEKING)
+# print('\n')
+# print('estimated nn error:', np.round(nn_error,2))
+# print('estimated rr error:', np.round(rr_error,2))
+# print('estimated bl error:', np.round(bl_error,2))
+# print('optimal hidden units:', h_opt)
+# print('optimal lambdas:', np.round(lambda_opt,2))
 
-print('\nfinal means:\nNN:', np.round(np.mean(nn_error),2), '\nRR:', np.round(np.mean(rr_error),2), '\nBL:', np.round(np.mean(bl_error),2))
+# print('\nfinal means:\nNN:', np.round(np.mean(nn_error),2), '\nRR:', np.round(np.mean(rr_error),2), '\nBL:', np.round(np.mean(bl_error),2))
 
 
 
@@ -405,18 +414,18 @@ rho = 1/K1
 
 # p-values for the null hypothesis that the two models have the same performance
 
-# NN vs RR
-nn_rr_p, nn_rr_CI = correlated_ttest(nn_rr, rho, alpha=alpha)
+# # NN vs RR
+# nn_rr_p, nn_rr_CI = correlated_ttest(nn_rr, rho, alpha=alpha)
 
-# NN vs BL
-nn_bl_p, nn_bl_CI = correlated_ttest(nn_bl, rho, alpha=alpha)
+# # NN vs BL
+# nn_bl_p, nn_bl_CI = correlated_ttest(nn_bl, rho, alpha=alpha)
 
-# RR vs BL
-rr_bl_p, rr_bl_CI = correlated_ttest(rr_bl, rho, alpha=alpha)
+# # RR vs BL
+# rr_bl_p, rr_bl_CI = correlated_ttest(rr_bl, rho, alpha=alpha)
 
-print('\nNN vs RR:', np.round(nn_rr_p,3), np.round(nn_rr_CI,2))
-print('NN vs BL:', np.round(nn_bl_p,3), np.round(nn_bl_CI,2))
-print('RR vs BL:', np.round(rr_bl_p,3), np.round(rr_bl_CI,2))
+# print('\nNN vs RR:', np.round(nn_rr_p,3), np.round(nn_rr_CI,2))
+# print('NN vs BL:', np.round(nn_bl_p,3), np.round(nn_bl_CI,2))
+# print('RR vs BL:', np.round(rr_bl_p,3), np.round(rr_bl_CI,2))
 
 
 # Taken from https://piazza.com/class/k66atrohlm63kt?cid=183
@@ -442,89 +451,7 @@ del min_error_nn_index, min_error_rr_index, n_replicates
 del hidden_units, lambdas
 
 
-#%% Copy/paste bin, junk and other stuff
 
 
 
-# Prepare data
-# y = np.array(X[:,3]).reshape(-1,1) # y = adiposity
-# X0 = X[:,[0,1,2, 4,5,6,7,8]] # exclude adiposity
-# # X1 = X[:,[1,2, 4,5,6,7,8]]  # 0: 0.537
-# # X1 = X[:,[2,4, 5,6,7,8]]  # 1: 0.5353
-# # X1 = X[:,[2, 5,6,7,8]]  # 4/5: 0.5346
-# X1 = X[:,[2, 6,7,8]]  # 5: 0.534   <---  best linreg according to primitive backwards selection
-# X2 = X[:,[2, 6,8]]  # 7: 0.5345   <---  best ridgereg (3rd order poly)
-# # X2 = X[:,[ 6,8]]  # 2: 0.5444
-# # X2 = X[:,[ 6 ]]  # 8: 0.6955
 
-
-
-# X2, X_te, y2, y_te = train_test_split(X, y, test_size = 0.2, random_state = 42)
-
-# X = X[np.argsort(X[:, 6])] # line plot gets otherwise messy
-
-# # polyreg, probably not used
-# age = np.array(X[:,6]).reshape(-1,1)
-# age_pow = age**2
-# age2 = np.asarray(np.bmat('age, age_pow'))
-
-
-### TEST 1 ### adi/age
-
-# # Fit ordinary least squares regression model
-# model = lm.LinearRegression(fit_intercept=True)
-# model = model.fit(age,y)
-
-# # Compute model output:
-# y_est = model.predict(age)
-# residual = y_est - y
-
-# # Plot
-# f = figure()
-# plot(age,y,'.')
-# plot(age,y_est,'-')
-
-# figure()
-# hist(residual,40)
-
-
-
-### TEST 2 ### adi/(age,age^2)
-
-# # Fit ordinary least squares regression model
-# model = lm.LinearRegression(fit_intercept=True)
-# model = model.fit(age2,y)
-
-# # Compute model output:
-# y_est = model.predict(age2)
-# residual = y_est - y
-
-# # Plot
-# f = figure()
-# plot(age,y,'.')
-# plot(age,y_est,'-')
-
-# figure()
-# hist(residual,40)
-
-
-
-# ### TEST 3 ### adi/X
-
-# # Fit ordinary least squares regression model
-# model = lm.LinearRegression(fit_intercept=True)
-# model = model.fit(X,y)
-
-# # Compute model output:
-# y_est = model.predict(X)
-# residual = y_est - y
-
-# # Plot
-# f = figure()
-# plot(y,y_est,'.')
-
-# figure()
-# hist(residual,40)
-
-
-# del model, f
