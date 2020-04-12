@@ -258,8 +258,8 @@ import torch
 
 
 lambdas = np.logspace(-3, 4, 50)
-K1 = 10
-K2 = 10 # 5 # 10
+K1 = 2
+K2 = 3 # 5 # 10
 
 # Init hyperparameters
 hidden_units = np.arange(start = 1, stop = 10, step = 2)
@@ -352,6 +352,7 @@ for train_index, test_index in CV1.split(Xr):
     if len(selected_features) is 0:
         print('No features were selected, i.e. the data (X) in the fold cannot describe the outcomes (y).' )
     else:
+        N, M =Xr_train[:,selected_features].shape
         lin_reg = LinearRegression(fit_intercept=True,n_jobs=-1)
         lin_reg.fit(Xr_train[:,selected_features], yr_train)
         Error_train_fs[k] = np.square(yr_train-lin_reg.predict(Xr_train[:,selected_features])).sum()/yr_train.shape[0]
@@ -422,7 +423,7 @@ for train_index, test_index in CV1.split(Xr):
     print('Features no: {0}\n'.format(selected_features.size))
 
 #-----------------------------------------------------------------------    
-    
+    P, L = Xr.shape
     # Init RMSE
     nn_error_val = np.zeros([K2,len(hidden_units)])
     rr_error_val = np.zeros([K2,len(lambdas)])
@@ -455,7 +456,7 @@ for train_index, test_index in CV1.split(Xr):
 
             # Define the model
             model = lambda: torch.nn.Sequential(
-                                torch.nn.Linear(M, h), #M features to n_hidden_units
+                                torch.nn.Linear(L, h), #M features to n_hidden_units
                                 torch.nn.Tanh(), # 1st transfer function,
 
                                 torch.nn.Linear(h, h),   # torch.nn.ReLU()   torch.nn.Tanh()
