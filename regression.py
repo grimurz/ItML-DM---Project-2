@@ -361,7 +361,7 @@ for par_index, test_index in CV1.split(X_r):
         
     
     # Ridge testing
-    ridge_reg = make_pipeline(PolynomialFeatures(3), Ridge(alpha=lambda_opt[k]))
+    ridge_reg = make_pipeline(PolynomialFeatures(2), Ridge(alpha=lambda_opt[k]))
     ridge_reg.fit(X_par, y_par)
     y_test_pred = ridge_reg.predict(X_test)
     rr_error[k] = np.sqrt(np.mean((y_test_pred-y_test)**2))
