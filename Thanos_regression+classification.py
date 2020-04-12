@@ -617,7 +617,7 @@ for train_index, test_index in CV1.split(Xc):
             misclass_rate_trainRF = sum(rfc_train_pred != yc_train_KFold_log) / float(len(rfc_train_pred))
             Error_test_RF[i,j], Error_train_RF[i,j] = misclass_rate_testRF, misclass_rate_trainRF
             
-        mean_rf_error_val = np.mean(Error_test_RF,axis=0)
+        mean_rf_error_val = np.mean(Error_test_RF,axis=1)   # <- Attn: axis=1 ?
         min_error_rf_val[j] = np.min(mean_rf_error_val)
 
         min_error_rf_index = np.where(mean_rf_error_val == min_error_rf_val[j])[0][0]
@@ -626,8 +626,6 @@ for train_index, test_index in CV1.split(Xc):
         
         
         for a, c in enumerate(lambdas):
-            
-           
             
             # Applying LDA
             lda = LDA(n_components = 2)
@@ -646,7 +644,7 @@ for train_index, test_index in CV1.split(Xc):
             Error_test_log[a,j], Error_train_log[a,j] = misclass_rate_test, misclass_rate_train
             
             
-        mean_rr_error_val = np.mean(Error_test_log,axis=0)
+        mean_rr_error_val = np.mean(Error_test_log,axis=1)   # <- Attn: axis=1 ?
         min_error_rr_val[j] = np.min(mean_rr_error_val)
 
         min_error_rr_index = np.where(mean_rr_error_val == min_error_rr_val[j])[0][0]
@@ -661,8 +659,8 @@ for train_index, test_index in CV1.split(Xc):
         
         j+=1
         
-    leaf_opt[k] =np.max(leaf_opt_val).astype(int)   
-    tree_opt[k]=np.max(tree_opt_val).astype(int) 
+    leaf_opt[k] = np.max(leaf_opt_val).astype(int)   # <- Attn: Mean or most frequent? # print('most frequent h', np.argmax(np.bincount(h_opt_val.astype(int))))
+    tree_opt[k] = np.max(tree_opt_val).astype(int) 
     lambda_opt[k] = np.mean(lambda_opt_val)
 
     # Collect mean of min errors
@@ -673,8 +671,8 @@ for train_index, test_index in CV1.split(Xc):
     print('\nmean rr val error', np.round(np.mean(min_error_rr_val),4))
     print('mean rf val error', np.round(np.mean(min_error_rf_val),4))
     print('mean lambda', np.round(lambda_opt[k],4))
-    leaf_optimal_samples=math.ceil(leaf_opt[k]+1)
-    leaf_optimal_split =math.ceil(leaf_opt[k]/2+1)
+    leaf_optimal_samples = math.ceil(leaf_opt[k]+1)
+    leaf_optimal_split = math.ceil(leaf_opt[k]/2+1)
   
     #Random forests testing
     if leaf_optimal_split==1:
@@ -692,12 +690,30 @@ for train_index, test_index in CV1.split(Xc):
         rf_val_error[k] = misclass_rate_test_rf
         
         
-     # Ridge testing
-    ridge_reg = make_pipeline(PolynomialFeatures(3), Ridge(alpha=lambda_opt[k]))
-    ridge_reg.fit(Xc_train_KFold_outer, yc_train_KFold_outer)
-    y_test_pred = ridge_reg.predict(Xc_test_KFold_outer)
-    misclass_rate_test_val = sum(y_test_pred != yc_test_KFold_outer) / float(len(y_test_pred))
+    # # Ridge testing
+    # ridge_reg = make_pipeline(PolynomialFeatures(3), Ridge(alpha=lambda_opt[k]))
+    # ridge_reg.fit(Xc_train_KFold_outer, yc_train_KFold_outer)
+    # y_test_pred = ridge_reg.predict(Xc_test_KFold_outer)
+    # misclass_rate_test_val = sum(y_test_pred != yc_test_KFold_outer) / float(len(y_test_pred))
+    # log_val_error[k] = misclass_rate_test_val
+
+
+    # Applying LDA
+    lda = LDA(n_components = 2)
+    Xc_train_LDA_outer = lda.fit_transform(Xc_train_KFold_outer, yc_train_KFold_outer)
+    Xc_test_LDA_outer = lda.transform(Xc_test_KFold_outer)
+
+    # Fitting Logistic Regression model to the Training set
+    log_classifier = LogisticRegression( C=lambda_opt[k], n_jobs=-1)
+    log_classifier.fit(Xc_train_LDA_outer, yc_train_KFold_outer.ravel())
+
+    # log_train_pred_outer = log_classifier.predict(Xc_train_LDA_outer)    
+    log_test_pred_outer = log_classifier.predict(Xc_test_LDA_outer)
+
+    # misclass_rate_train = sum(log_train_pred_outer != yc_train_KFold_outer) / float(len(log_train_pred_outer))    
+    misclass_rate_test_val = sum(log_test_pred_outer != yc_test_KFold_outer) / float(len(log_test_pred_outer))
     log_val_error[k] = misclass_rate_test_val
+
 
 
     # Baseline testing
