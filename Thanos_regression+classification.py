@@ -640,6 +640,11 @@ for train_index, test_index in CV1.split(Xc):
             log_train_pred = log_classifier.predict(Xc_train_LDA)
             
             misclass_rate_test = sum(log_test_pred != yc_test_KFold_log) / float(len(log_test_pred))
+            
+            if np.isnan(misclass_rate_test):
+                print('beep')
+                exit()
+            
             misclass_rate_train = sum(log_train_pred != yc_train_KFold_log) / float(len(log_train_pred))
             Error_test_log[a,j], Error_train_log[a,j] = misclass_rate_test, misclass_rate_train
             
