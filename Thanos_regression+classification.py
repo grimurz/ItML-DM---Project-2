@@ -12,6 +12,7 @@ from sklearn.pipeline import make_pipeline
 from sklearn.linear_model import Ridge
 from sklearn.model_selection import cross_val_score
 from sklearn.linear_model import Lasso
+from toolbox_02450 import *
 
 #DATA PRE-PROCESSING
 
@@ -241,7 +242,7 @@ del mse_train_ridge, mse_test_ridge, min_error, min_error_index
 
 #MOVING ON WITH THE BEST TUNED REGULARIZATION FACTOR('C')
 
-
+#%%----------------------Nested Models/Feature Selection-------------------------------------
 
 
 #PROJECT 2, Regression, PART b, 1st point--------------------------------
@@ -249,22 +250,73 @@ del mse_train_ridge, mse_test_ridge, min_error, min_error_index
 
 
 ## Linear regression model with nested cros validation AND feature selection
-
-K = 10
-CV = model_selection.KFold(n_splits=K,shuffle=True, random_state = 42)
+from sklearn.preprocessing import PolynomialFeatures
 from sklearn.linear_model import LinearRegression
+from sklearn import model_selection
+import torch
+
+
+
+lambdas = np.logspace(-3, 4, 50)
+K1 = 10
+K2 = 10 # 5 # 10
+
+# Init hyperparameters
+hidden_units = np.arange(start = 1, stop = 10, step = 2)
+hidden_units_fs = np.arange(start = 1, stop = 10, step = 2)
+# Init optimal hyperparameters
+h_opt = np.zeros(K1).astype(int)
+h_opt_fs = np.zeros(K1).astype(int)
+lambda_opt = np.zeros(K1)
+lambda_opt_fs = np.zeros(K1)
+# Init errors
+nn_error = np.zeros(K1)  # articial neural network
+rr_error = np.zeros(K1)  # ridge regression
+bl_error = np.zeros(K1)  # baseline
+nn_error_val_tot = np.zeros(K1)
+rr_error_val_tot = np.zeros(K1)
+
+nn_error_val_tot_fs = np.zeros(K1)
+rr_error_val_tot_fs = np.zeros(K1)
+
+# Init statistic evaluation
+nn_rr = []
+nn_bl = []
+rr_bl = []
+loss = 2
+
+# Parameters for neural network 
+n_replicates = 2       # number of networks trained in each k-fold
+max_iter = 5000
+
+
+CV1 = model_selection.KFold(n_splits=K1,shuffle=True, random_state = 42)
+CV2 = model_selection.KFold(n_splits=K2, shuffle=True, random_state=43)
+
 # Initialize variables
-Features = np.zeros((M,K))
-Error_train = np.empty((K,1))
-Error_test = np.empty((K,1))
-Error_train_fs = np.empty((K,1))
-Error_test_fs = np.empty((K,1))
-Error_train_nofeatures = np.empty((K,1))
-Error_test_nofeatures = np.empty((K,1))
+Features = np.zeros((M,K1))
+Error_train = np.empty((K1,1))
+Error_test = np.empty((K1,1))
+Error_train_fs = np.empty((K1,1))
+Error_test_fs = np.empty((K1,1))
+Error_train_fs_ridge = np.empty((K1,1))
+Error_test_fs_ridge = np.empty((K1,1))
+Error_train_nofeatures = np.empty((K1,1))
+Error_test_nofeatures = np.empty((K1,1))
+nn_error_val_fs = np.zeros([K2,len(hidden_units)])
+rr_error_val_fs = np.zeros([K2,len(lambdas)])
+
+# Init optimal lambda & optimal h
+h_opt_val_fs = np.zeros(K2)
+lambda_opt_val_fs = np.zeros(K2)
+    
+# Init min error
+min_error_nn_val_fs = np.zeros(K2)
+min_error_rr_val_fs = np.zeros(K2)
 
 k=0
 # Outer loop
-for train_index, test_index in CV.split(Xr):
+for train_index, test_index in CV1.split(Xr):
     
     # extract training and test set for current CV fold
     Xr_train = Xr[train_index,:]
@@ -272,6 +324,12 @@ for train_index, test_index in CV.split(Xr):
     Xr_test = Xr[test_index,:]
     yr_test = yr[test_index]
     internal_cross_validation = 10
+    
+    # Convert to tensors
+    X_nn_train_fs = torch.Tensor(Xr_train)
+    y_nn_train_fs = torch.Tensor(yr_train)
+    X_nn_val_fs = torch.Tensor(Xr_test)
+
     
     # Compute squared error without using the input data at all
     Error_train_nofeatures[k] = np.square(yr_train-yr_train.mean()).sum()/yr_train.shape[0]
@@ -299,6 +357,50 @@ for train_index, test_index in CV.split(Xr):
         Error_train_fs[k] = np.square(yr_train-lin_reg.predict(Xr_train[:,selected_features])).sum()/yr_train.shape[0]
         Error_test_fs[k] = np.square(yr_test-lin_reg.predict(Xr_test[:,selected_features])).sum()/yr_test.shape[0]
     
+        #Ridge regularization linear model training based on selected features
+        ridge_reg = make_pipeline(PolynomialFeatures(2), Ridge(alpha=2.682695795279721906e+01))
+        ridge_reg.fit(Xr_train[:,selected_features], yr_train)
+        Error_train_fs_ridge[k] = np.square(yr_train-ridge_reg.predict(Xr_train[:,selected_features])).sum()/yr_train.shape[0]
+        Error_test_fs_ridge[k] = np.square(yr_test-ridge_reg.predict(Xr_test[:,selected_features])).sum()/yr_test.shape[0]
+    
+        model = lambda: torch.nn.Sequential(
+                                torch.nn.Linear(M, 1), #M features to n_hidden_units
+                                torch.nn.Tanh(), # 1st transfer function,
+
+                                torch.nn.Linear(1, 1),   # torch.nn.ReLU()   torch.nn.Tanh()
+                                torch.nn.ReLU(),
+            
+                                torch.nn.Linear(1, 1), # n_hidden_units to 1 output neuron
+                                # no final tranfer function, i.e. "linear output"
+                                )
+        loss_fn = torch.nn.MSELoss()
+            
+        # Train the net on training data
+        net, final_loss, learning_curve = train_neural_net(model,
+                                                                loss_fn,
+                                                                X=X_nn_train_fs[:,selected_features],
+                                                                y=y_nn_train_fs,
+                                                                n_replicates=n_replicates,
+                                                                max_iter=max_iter)
+            
+        # Determine estimated class labels for test set
+        y_nn_val_pred_fs = net(X_nn_val_fs[:,selected_features]).detach().numpy()
+
+        # Calculate error (RMSE)
+        nn_error_val_fs[k,i] = np.sqrt(np.mean((y_nn_val_pred_fs-yr_test)**2))
+            
+            
+            
+
+        mean_nn_error_val_fs = np.mean(nn_error_val_fs,axis=0)
+        min_error_nn_val_fs[k] = np.min(mean_nn_error_val_fs)
+
+        min_error_nn_index_fs = np.where(mean_nn_error_val_fs == min_error_nn_val_fs[k])[0][0]
+        h_opt_val_fs[k] = hidden_units_fs[min_error_nn_index_fs]
+        
+        
+        
+    
         figure(k)
         subplot(1,2,1)
         plot(range(1,len(loss_record)), np.sqrt(loss_record[1:]))
@@ -309,14 +411,215 @@ for train_index, test_index in CV.split(Xr):
         bmplot(regression_attribute_names, range(1,features_record.shape[1]), -features_record[:,1:])
         clim(-1.5,0)
         xlabel('Iteration')
+        
+     # Collect mean of min errors
+    nn_error_val_tot_fs[k] = np.mean(min_error_nn_val_fs)
+    rr_error_val_tot_fs[k] = np.mean(min_error_rr_val_fs)
 
-
-    print('Cross validation fold {0}/{1}'.format(k+1,K))
+    print('Cross validation fold {0}/{1}'.format(k+1,K1))
     #print('Train indices: {0}'.format(train_index))
     #print('Test indices: {0}'.format(test_index))
     print('Features no: {0}\n'.format(selected_features.size))
 
+#-----------------------------------------------------------------------    
+    
+    # Init RMSE
+    nn_error_val = np.zeros([K2,len(hidden_units)])
+    rr_error_val = np.zeros([K2,len(lambdas)])
+    
+    # Init optimal lambda & optimal h
+    h_opt_val = np.zeros(K2)
+    lambda_opt_val = np.zeros(K2)
+    
+    # Init min error
+    min_error_nn_val = np.zeros(K2)
+    min_error_rr_val = np.zeros(K2)
+    
+    
+     ##### Inner loop for training and validation #####
+    j=0
+    for train_index, val_index in CV2.split(Xr_train):
+        
+        # extract training and test set for current CV fold
+        X_train, y_train = Xr_train[train_index,:], yr_train[train_index]
+        X_val, y_val = Xr_train[val_index,:], yr_train[val_index]
+
+        # Convert to tensors
+        X_nn_train = torch.Tensor(X_train)
+        y_nn_train = torch.Tensor(y_train)
+        X_nn_val = torch.Tensor(X_val)
+
+
+        ##### ANN training #####
+        for i, h in enumerate(hidden_units):
+
+            # Define the model
+            model = lambda: torch.nn.Sequential(
+                                torch.nn.Linear(M, h), #M features to n_hidden_units
+                                torch.nn.Tanh(), # 1st transfer function,
+
+                                torch.nn.Linear(h, h),   # torch.nn.ReLU()   torch.nn.Tanh()
+                                torch.nn.ReLU(),
+            
+                                torch.nn.Linear(h, 1), # n_hidden_units to 1 output neuron
+                                # no final tranfer function, i.e. "linear output"
+                                )
+            loss_fn = torch.nn.MSELoss()
+            
+            # Train the net on training data
+            net, final_loss, learning_curve = train_neural_net(model,
+                                                                loss_fn,
+                                                                X=X_nn_train,
+                                                                y=y_nn_train,
+                                                                n_replicates=n_replicates,
+                                                                max_iter=max_iter)
+            
+            # Determine estimated class labels for test set
+            y_nn_val_pred = net(X_nn_val).detach().numpy()
+
+            # Calculate error (RMSE)
+            nn_error_val[j,i] = np.sqrt(np.mean((y_nn_val_pred-y_val)**2))
+
+        mean_nn_error_val = np.mean(nn_error_val,axis=0)
+        min_error_nn_val[j] = np.min(mean_nn_error_val)
+
+        min_error_nn_index = np.where(mean_nn_error_val == min_error_nn_val[j])[0][0]
+        h_opt_val[j] = hidden_units[min_error_nn_index]
+        
+        ##### Ridge training #####
+        for i, lam in enumerate(lambdas):
+            
+            # lasso_reg = make_pipeline(PolynomialFeatures(2), Lasso(alpha=lam))
+            # lasso_reg.fit(X_train, y_train)
+    
+            # Fit ridge regression model
+            ridge_reg = make_pipeline(PolynomialFeatures(2), Ridge(alpha=lam))
+            ridge_reg.fit(X_train, y_train)
+    
+            # Compute model output:
+            # y_val_pred = lasso_reg.predict(X_val)
+            y_val_pred = ridge_reg.predict(X_val)
+    
+            # Calculate error (RMSE)
+            rr_error_val[j,i] = np.sqrt(np.mean((y_val_pred-y_val)**2))
+
+        mean_rr_error_val = np.mean(rr_error_val,axis=0)
+        min_error_rr_val[j] = np.min(mean_rr_error_val)
+
+        min_error_rr_index = np.where(mean_rr_error_val == min_error_rr_val[j])[0][0]
+        lambda_opt_val[j] = lambdas[min_error_rr_index]
+        
+        
+        
+        print('\nK1:',k+1,' K2:',j+1)
+        print('min rr RMSE error:', np.round(min_error_rr_val[j],4))
+        print('min nn RMSE error:', np.round(min_error_nn_val[j],4))
+        print('opt lambda:', np.round(lambdas[min_error_rr_index],4))
+        print('opt h:', np.round(hidden_units[min_error_nn_index],4))
+    
+        j+=1
+        
+    h_opt[k] = np.round(np.mean(h_opt_val)).astype(int)
+    lambda_opt[k] = np.mean(lambda_opt_val)
+
+    # Collect mean of min errors
+    nn_error_val_tot[k] = np.mean(min_error_nn_val)
+    rr_error_val_tot[k] = np.mean(min_error_rr_val)
+
+
+    print('\nmean rr val error', np.round(np.mean(min_error_rr_val),4))
+    print('mean nn val error', np.round(np.mean(min_error_nn_val),4))
+    print('mean lambda', np.round(lambda_opt[k],4))
+    print('mean h', h_opt[k])
+    # print('most frequent h', np.argmax(np.bincount(h_opt_val.astype(int))))
+
+
+
+    ##### Validation using test data #####
+
+    # ANN testing    
+    X_nn_par = torch.Tensor(X_train)
+    y_nn_par = torch.Tensor(y_train)
+    X_nn_test = torch.Tensor(X_val)
+
+    model = lambda: torch.nn.Sequential(
+                        torch.nn.Linear(M, h_opt[k]),
+                        torch.nn.Tanh(),
+                        torch.nn.Linear(h_opt[k], h_opt[k]),
+                        torch.nn.ReLU(),
+                        torch.nn.Linear(h_opt[k], 1),
+                        )
+    loss_fn = torch.nn.MSELoss()
+
+    net, final_loss, learning_curve = train_neural_net(model,
+                                                        loss_fn,
+                                                        X=X_nn_par,
+                                                        y=y_nn_par,
+                                                        n_replicates=n_replicates,
+                                                        max_iter=max_iter)
+    y_nn_test_pred = net(X_nn_test).detach().numpy()
+    nn_error[k] = np.sqrt(np.mean((y_nn_test_pred-yr_test)**2))
+        
+    
+    # Ridge testing
+    ridge_reg = make_pipeline(PolynomialFeatures(2), Ridge(alpha=lambda_opt[k]))
+    ridge_reg.fit(X_par, y_par)
+    y_test_pred = ridge_reg.predict(X_test)
+    rr_error[k] = np.sqrt(np.mean((y_test_pred-yr_test)**2))
+
+
+    # Baseline testing
+    lin_reg = lm.LinearRegression(fit_intercept=True)
+    lin_reg.fit(X_par, y_par)
+    y_bl_pred = lin_reg.predict(X_test)
+    bl_error[k] = np.sqrt(np.mean((y_bl_pred-yr_test)**2))  # root mean square error
+    
+
     k+=1
+    
+    
+    
+#Error calculation after the feature selection
+print('\nFinal validation error after feature selection:')
+print('nn val:', np.round(np.mean(nn_error_val_tot_fs),4))
+print('rr val:', np.round(np.mean(rr_error_val_tot_fs),4))
+    
+# Take mean from all three methods and compare (NO PEEKING)
+print('\n')
+print('estimated nn error:', np.round(nn_error_val_fs,2))
+print('estimated rr error:', np.round(Error_test_fs_ridge,2))
+print('estimated bl error:', np.round(bl_error,2))
+print('optimal hidden units:', h_opt_fs)
+#print('optimal lambdas:', np.round(lambda_opt,2))
+
+print('\nfinal means:\nNN:', np.round(np.mean(nn_error_fs),2), '\nRR:', np.round(np.mean(rr_error_fs),2), '\nBL:', np.round(np.mean(bl_error),2))
+
+
+#Error calculation for the nested CV
+
+print('\nFinal validation error:')
+print('nn val:', np.round(np.mean(nn_error_val_tot),4))
+print('rr val:', np.round(np.mean(rr_error_val_tot),4))
+    
+# Take mean from all three methods and compare (NO PEEKING)
+print('\n')
+print('estimated nn error:', np.round(nn_error,2))
+print('estimated rr error:', np.round(rr_error,2))
+print('estimated bl error:', np.round(bl_error,2))
+print('optimal hidden units:', h_opt)
+print('optimal lambdas:', np.round(lambda_opt,2))
+
+print('\nfinal means:\nNN:', np.round(np.mean(nn_error),2), '\nRR:', np.round(np.mean(rr_error),2), '\nBL:', np.round(np.mean(bl_error),2))
+
+
+
+
+
+
+
+
+
+
 
 # Display results
 print('\n')
