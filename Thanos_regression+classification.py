@@ -286,7 +286,7 @@ rr_bl = []
 loss = 2
 
 # Parameters for neural network 
-n_replicates = 2       # number of networks trained in each k-fold
+n_replicates = 1       # number of networks trained in each k-fold
 max_iter = 5000
 
 
@@ -388,7 +388,7 @@ for train_index, test_index in CV1.split(Xr):
         y_nn_val_pred_fs = net(X_nn_val_fs[:,selected_features]).detach().numpy()
 
         # Calculate error (RMSE)
-        nn_error_val_fs[k,i] = np.sqrt(np.mean((y_nn_val_pred_fs-yr_test)**2))
+        nn_error_val_fs[k] = np.sqrt(np.mean((y_nn_val_pred_fs-yr_test)**2))
             
             
             
@@ -544,7 +544,7 @@ for train_index, test_index in CV1.split(Xr):
     X_nn_test = torch.Tensor(X_val)
 
     model = lambda: torch.nn.Sequential(
-                        torch.nn.Linear(M, h_opt[k]),
+                        torch.nn.Linear(L, h_opt[k]),
                         torch.nn.Tanh(),
                         torch.nn.Linear(h_opt[k], h_opt[k]),
                         torch.nn.ReLU(),
@@ -564,15 +564,15 @@ for train_index, test_index in CV1.split(Xr):
     
     # Ridge testing
     ridge_reg = make_pipeline(PolynomialFeatures(2), Ridge(alpha=lambda_opt[k]))
-    ridge_reg.fit(X_par, y_par)
-    y_test_pred = ridge_reg.predict(X_test)
+    ridge_reg.fit(Xr_train, yr_train)
+    y_test_pred = ridge_reg.predict(Xr_test)
     rr_error[k] = np.sqrt(np.mean((y_test_pred-yr_test)**2))
 
 
     # Baseline testing
-    lin_reg = lm.LinearRegression(fit_intercept=True)
-    lin_reg.fit(X_par, y_par)
-    y_bl_pred = lin_reg.predict(X_test)
+    lin_reg = LinearRegression(fit_intercept=True)
+    lin_reg.fit(Xr_train, yr_train)
+    y_bl_pred = lin_reg.predict(Xr_test)
     bl_error[k] = np.sqrt(np.mean((y_bl_pred-yr_test)**2))  # root mean square error
     
 
@@ -588,12 +588,12 @@ print('rr val:', np.round(np.mean(rr_error_val_tot_fs),4))
 # Take mean from all three methods and compare (NO PEEKING)
 print('\n')
 print('estimated nn error:', np.round(nn_error_val_fs,2))
-print('estimated rr error:', np.round(Error_test_fs_ridge,2))
+print('estimated rr error:', np.round(np.sqrt(Error_test_fs_ridge),2))
 print('estimated bl error:', np.round(bl_error,2))
 print('optimal hidden units:', h_opt_fs)
 #print('optimal lambdas:', np.round(lambda_opt,2))
 
-print('\nfinal means:\nNN:', np.round(np.mean(nn_error_fs),2), '\nRR:', np.round(np.mean(rr_error_fs),2), '\nBL:', np.round(np.mean(bl_error),2))
+print('\nfinal means:\nNN:', np.round(np.mean(nn_error_val_fs),2), '\nRR:', np.round(np.sqrt(np.mean(Error_test_fs_ridge)),2), '\nBL:', np.round(np.mean(bl_error),2))
 
 
 #Error calculation for the nested CV
@@ -668,8 +668,7 @@ else:
 #title('Feature selection for Regression', loc='right')    
 show()
 
-min_error = np.min(test_error_ridge)
-min_error_index = np.where(test_error_ridge == min_error)[0][0]
+'''
 
 
 
@@ -696,7 +695,7 @@ plt.ylim([5, 15])
 plt.grid()
 plt.show()  
 
-
+'''
 #FITTING THE BEST SET OF FEATURES TO THE MODELS TO BE COMPARED
 
 
