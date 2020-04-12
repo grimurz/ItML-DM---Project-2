@@ -206,6 +206,11 @@ for par_index, test_index in CV1.split(X_r):
 
 
 
+    # temp test graph
+    plt.figure(figsize=(8,8))
+
+
+
     ##### Inner loop for training and validation #####
     j=0
     for train_index, val_index in CV2.split(X_par):
@@ -218,7 +223,6 @@ for par_index, test_index in CV1.split(X_r):
         X_nn_train = torch.Tensor(X_train)
         y_nn_train = torch.Tensor(y_train)
         X_nn_val = torch.Tensor(X_val)
-
 
 
         ##### ANN training #####
@@ -289,6 +293,8 @@ for par_index, test_index in CV1.split(X_r):
         print('min nn RMSE error:', np.round(min_error_nn_val[j],4))
         print('opt lambda:', np.round(lambdas[min_error_rr_index],4))
         print('opt h:', np.round(hidden_units[min_error_nn_index],4))
+
+
     
     
         # # # Temp visualization, to be commented
@@ -314,8 +320,22 @@ for par_index, test_index in CV1.split(X_r):
         # plt.grid()
         # plt.show()  
 
+        plt.plot(hidden_units, mean_nn_error_val)
+        plt.plot(hidden_units[min_error_nn_index], min_error_nn_val[j], 'o')
+        
         
         j+=1
+
+
+    # temp test graph
+    plt.xlabel('Hidden units')
+    plt.ylabel('RMSE')
+    plt.title('ANN - error - Outer CV fold no.'+str(k+1))
+    plt.legend(['Val error','Val minimum'],loc='upper right')
+    plt.ylim([0, 30])
+    plt.grid()
+    plt.show()  
+
 
 
     h_opt[k] = np.round(np.mean(h_opt_val)).astype(int)
