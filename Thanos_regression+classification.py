@@ -203,10 +203,10 @@ test_error_lasso = np.mean(mse_test_lasso,axis=0)
 train_error_elastic = np.mean(mse_train_elastic,axis=0)
 test_error_elastic = np.mean(mse_test_elastic,axis=0)
 
-min_error = np.min(test_error_ridge)
-min_error_index = np.where(test_error_ridge == min_error)[0][0]
+min_error = np.min(test_error_lasso)
+min_error_index = np.where(test_error_lasso == min_error)[0][0]
 import matplotlib.pyplot as plt
-plt.figure(figsize=(8,8))
+plt.figure(figsize=(8,8), dpi=300)
 plt.semilogx(lambdas, np.sqrt(train_error_ridge),label='Ridge train error')
 plt.semilogx(lambdas, np.sqrt(test_error_ridge),label='Ridge test error')
 plt.semilogx(lambdas, np.sqrt(Error_test_lin.mean(1)),label='Linear train error')
@@ -216,12 +216,12 @@ plt.semilogx(lambdas, np.sqrt(test_error_lasso),label='Lasso test error')
 plt.semilogx(lambdas, np.sqrt(train_error_elastic),label='ElasticNet train error')
 plt.semilogx(lambdas, np.sqrt(test_error_elastic),label='ElasticNet test error')
 plt.semilogx(lambdas[min_error_index], np.sqrt(min_error), 'o')
-plt.text(1, 10, "Minimum test error: " + str(np.round(np.sqrt(min_error),2)) + ' at 1e' + str(np.round(np.log10(lambdas[min_error_index]),2)))
+plt.text(1, 9, "Minimum test error: " + str(np.round(np.sqrt(min_error),2)) + ' at 1e' + str(np.round(np.log10(lambdas[min_error_index]),2)))
 plt.xlabel('Regularization strength, $\log_{10}(\lambda)$')
 plt.ylabel('RMSE')
-plt.title('Regression error')
+plt.title("Multiple Linear Regression, Models' error")
 plt.legend(loc=0,shadow=True, fontsize='small')
-plt.ylim([5, 15])
+plt.ylim([7, 15])
 plt.grid()
 plt.show()  
 
@@ -299,8 +299,8 @@ Error_train = np.empty((K1,1))
 Error_test = np.empty((K1,1))
 Error_train_fs = np.empty((K1,1))
 Error_test_fs = np.empty((K1,1))
-Error_train_fs_ridge = np.empty(K1)
-Error_test_fs_ridge = np.empty(K1)
+Error_train_fs_lasso = np.empty(K1)
+Error_test_fs_lasso = np.empty(K1)
 Error_train_nofeatures = np.empty((K1,1))
 Error_test_nofeatures = np.empty((K1,1))
 nn_error_val_fs = np.zeros(K1)
@@ -357,12 +357,14 @@ for train_index, test_index in CV1.split(Xr):
         lin_reg.fit(Xr_train[:,selected_features], yr_train)
         Error_train_fs[k] = np.square(yr_train-lin_reg.predict(Xr_train[:,selected_features])).sum()/yr_train.shape[0]
         Error_test_fs[k] = np.square(yr_test-lin_reg.predict(Xr_test[:,selected_features])).sum()/yr_test.shape[0]
-    
-        #Ridge regularization linear model training based on selected features
-        ridge_reg = make_pipeline(PolynomialFeatures(2), Ridge(alpha=2.682695795279721906e+01))
-        ridge_reg.fit(Xr_train[:,selected_features], yr_train)
-        Error_train_fs_ridge[k] = np.square(yr_train-ridge_reg.predict(Xr_train[:,selected_features])).sum()/yr_train.shape[0]
-        Error_test_fs_ridge[k] = np.square(yr_test-ridge_reg.predict(Xr_test[:,selected_features])).sum()/yr_test.shape[0]
+   
+         #Ridge regularization linear model training based on selected features
+        lasso_reg_fs = make_pipeline(PolynomialFeatures(2), Lasso(alpha= 0.3727593720314938))
+        lasso_reg_fs.fit(Xr_train[:,selected_features], yr_train)
+       
+        
+        Error_train_fs_lasso[k] = np.square(yr_train-lasso_reg_fs.predict(Xr_train[:,selected_features])).sum()/yr_train.shape[0]
+        Error_test_fs_lasso[k] = np.square(yr_test-lasso_reg_fs.predict(Xr_test[:,selected_features])).sum()/yr_test.shape[0]
     
         model = lambda: torch.nn.Sequential(
                                 torch.nn.Linear(M, 3), #M features to n_hidden_units
@@ -402,7 +404,7 @@ for train_index, test_index in CV1.split(Xr):
         
         
     
-        figure(k)
+        figure(k,dpi=300)
         subplot(1,2,1)
         plot(range(1,len(loss_record)), np.sqrt(loss_record[1:]))
         xlabel('Iteration')
@@ -489,19 +491,19 @@ for train_index, test_index in CV1.split(Xr):
         min_error_nn_index = np.where(mean_nn_error_val == min_error_nn_val[j])[0][0]
         h_opt_val[j] = hidden_units[min_error_nn_index]
         
-        ##### Ridge training #####
+        ##### Lasso training #####
         for i, lam in enumerate(lambdas):
             
-            # lasso_reg = make_pipeline(PolynomialFeatures(2), Lasso(alpha=lam))
-            # lasso_reg.fit(X_train, y_train)
+            lasso_reg_nest = make_pipeline(PolynomialFeatures(2), Lasso(alpha=lam))
+            lasso_reg_nest.fit(X_train, y_train)
     
             # Fit ridge regression model
-            ridge_reg = make_pipeline(PolynomialFeatures(2), Ridge(alpha=lam))
-            ridge_reg.fit(X_train, y_train)
+            #ridge_reg = make_pipeline(PolynomialFeatures(2), Ridge(alpha=lam))
+            #ridge_reg.fit(X_train, y_train)
     
             # Compute model output:
-            # y_val_pred = lasso_reg.predict(X_val)
-            y_val_pred = ridge_reg.predict(X_val)
+            y_val_pred = lasso_reg_nest.predict(X_val)
+            #y_val_pred = ridge_reg.predict(X_val)
     
             # Calculate error (RMSE)
             rr_error_val[j,i] = np.sqrt(np.mean((y_val_pred-y_val)**2))
@@ -515,8 +517,8 @@ for train_index, test_index in CV1.split(Xr):
         
         
         print('\nK1:',k+1,' K2:',j+1)
-        print('min rr RMSE error:', np.round(min_error_rr_val[j],4))
-        print('min nn RMSE error:', np.round(min_error_nn_val[j],4))
+        print('min Lasso RMSE error:', np.round(min_error_rr_val[j],4))
+        print('min ANN RMSE error:', np.round(min_error_nn_val[j],4))
         print('opt lambda:', np.round(lambdas[min_error_rr_index],4))
         print('opt h:', np.round(hidden_units[min_error_nn_index],4))
     
@@ -530,8 +532,8 @@ for train_index, test_index in CV1.split(Xr):
     rr_error_val_tot[k] = np.mean(min_error_rr_val)
 
 
-    print('\nmean rr val error', np.round(np.mean(min_error_rr_val),4))
-    print('mean nn val error', np.round(np.mean(min_error_nn_val),4))
+    print('\nmean lasso val error', np.round(np.mean(min_error_rr_val),4))
+    print('mean ANN val error', np.round(np.mean(min_error_nn_val),4))
     print('mean lambda', np.round(lambda_opt[k],4))
     print('mean h', h_opt[k])
     # print('most frequent h', np.argmax(np.bincount(h_opt_val.astype(int))))
@@ -564,10 +566,10 @@ for train_index, test_index in CV1.split(Xr):
     nn_error[k] = np.sqrt(np.mean((y_nn_test_pred-yr_test)**2))
         
     
-    # Ridge testing
-    ridge_reg = make_pipeline(PolynomialFeatures(2), Ridge(alpha=lambda_opt[k]))
-    ridge_reg.fit(Xr_train, yr_train)
-    y_test_pred = ridge_reg.predict(Xr_test)
+    # Lasso testing
+    lasso_reg_val = make_pipeline(PolynomialFeatures(2), Lasso(alpha=lambda_opt[k]))
+    lasso_reg_val.fit(Xr_train, yr_train)
+    y_test_pred = lasso_reg_val.predict(Xr_test)
     rr_error[k] = np.sqrt(np.mean((y_test_pred-yr_test)**2))
 
 
@@ -593,16 +595,16 @@ for train_index, test_index in CV1.split(Xr):
 # print('\nFinal validation error after feature selection:')
 # print('nn val:', np.round(np.mean(nn_error_val_tot_fs),4))
 # print('rr val:', np.round(np.mean(rr_error_val_tot_fs),4))
-    
+print('\n\nFinal feature selection validation error:')
 # Take mean from all three methods and compare (NO PEEKING)
 print('\nfs train/test')
-print('estimated nn error:', np.round(nn_error_val_fs,2))
-print('estimated rr error:', np.round(np.sqrt(Error_test_fs_ridge),2))
-print('estimated bl error:', np.round(bl_error,2))
+print('estimated ANN error:', np.round(nn_error_val_fs,2))
+print('estimated Lasso error:', np.round(np.sqrt(Error_test_fs_lasso),2))
+print('estimated baseline error:', np.round(bl_error,2))
 # print('optimal hidden units:', h_opt_fs)
 #print('optimal lambdas:', np.round(lambda_opt,2))
 
-print('\nfinal fs means:\nNN:', np.round(np.mean(nn_error_val_fs),2), '\nRR:', np.round(np.sqrt(np.mean(Error_test_fs_ridge)),2), '\nBL:', np.round(np.mean(bl_error),2))
+print('\nfinal fs means:\nANN:', np.round(np.mean(nn_error_val_fs),2), '\nLasso:', np.round(np.sqrt(np.mean(Error_test_fs_lasso)),2), '\nBL:', np.round(np.mean(bl_error),2))
 
 
 
@@ -612,18 +614,18 @@ print('\nfinal fs means:\nNN:', np.round(np.mean(nn_error_val_fs),2), '\nRR:', n
 
 #Error calculation for the nested CV
 
-print('\n\nFinal validation error:')
-print('nn val:', np.round(np.mean(nn_error_val_tot),4))
-print('rr val:', np.round(np.mean(rr_error_val_tot),4))
+print('\n\nFinal nested validation error:')
+print('ANN val:', np.round(np.mean(nn_error_val_tot),4))
+print('Lasso val:', np.round(np.mean(rr_error_val_tot),4))
     
 # Take mean from all three methods and compare (NO PEEKING)
-print('\nestimated nn error:', np.round(nn_error,2))
-print('estimated rr error:', np.round(rr_error,2))
-print('estimated bl error:', np.round(bl_error,2))
+print('\nestimated ANN error:', np.round(nn_error,2))
+print('estimated Lasso error:', np.round(rr_error,2))
+print('estimated baseline error:', np.round(bl_error,2))
 print('optimal hidden units:', h_opt)
 print('optimal lambdas:', np.round(lambda_opt,2))
 
-print('\nfinal means:\nNN:', np.round(np.mean(nn_error),2), '\nRR:', np.round(np.mean(rr_error),2), '\nBL:', np.round(np.mean(bl_error),2))
+print('\nfinal means:\nANN:', np.round(np.mean(nn_error),2), '\nLasso:', np.round(np.mean(rr_error),2), '\nBL:', np.round(np.mean(bl_error),2))
 
 
 
@@ -637,9 +639,9 @@ nn_rr_p, nn_rr_CI = correlated_ttest(nn_rr, rho, alpha=alpha) # NN vs RR
 nn_bl_p, nn_bl_CI = correlated_ttest(nn_bl, rho, alpha=alpha) # NN vs BL
 rr_bl_p, rr_bl_CI = correlated_ttest(rr_bl, rho, alpha=alpha) # RR vs BL
 
-print('\nNN vs RR:', np.round(nn_rr_p,3), np.round(nn_rr_CI,2))
-print('NN vs BL:', np.round(nn_bl_p,3), np.round(nn_bl_CI,2))
-print('RR vs BL:', np.round(rr_bl_p,3), np.round(rr_bl_CI,2))
+print('\nANN vs Lasso:', np.round(nn_rr_p,3), np.round(nn_rr_CI,2))
+print('ANN vs BL:', np.round(nn_bl_p,3), np.round(nn_bl_CI,2))
+print('Lasso vs BL:', np.round(rr_bl_p,3), np.round(rr_bl_CI,2))
 
 
 
@@ -658,7 +660,7 @@ print('- RMSE Test error:     {0}'.format(np.sqrt(Error_test_fs.mean(1))))
 print('- R^2 train:     {0}'.format((Error_train_nofeatures.sum()-Error_train_fs.sum())/Error_train_nofeatures.sum()))
 print('- R^2 test:     {0}'.format((Error_test_nofeatures.sum()-Error_test_fs.sum())/Error_test_nofeatures.sum()))
 
-figure(k)
+figure(k,dpi=300)
 subplot(1,3,2)
 bmplot(regression_attribute_names, range(1,Features.shape[1]+1), -Features)
 clim(-1.5,0)
@@ -680,7 +682,7 @@ else:
     lin_reg_pred= lin_reg.predict(Xr[:,ff])
     residual=yr-lin_reg_pred
     
-    figure(k+1, figsize=(12,6))
+    figure(k+1, figsize=(12,6),dpi=300)
     title('Residual error vs. Attributes for features selected in cross-validation fold {0}'.format(f))
     for i in range(0,len(ff)):
        subplot(2,np.ceil(len(ff)/2.0),i+1)
@@ -691,38 +693,40 @@ else:
 #title('Feature selection for Regression', loc='right')    
 show()
 
+
+
 '''
 
-
-
 import matplotlib.pyplot as plt
-plt.figure(figsize=(8,12))
-plt.semilogx(lambdas[10:50:4], np.sqrt(train_error_ridge[10:50:4]),label='Ridge train error')
-plt.semilogx(lambdas[10:50:4], np.sqrt(test_error_ridge[10:50:4]),label='Ridge test error')
-plt.semilogx(lambdas[10:50:4], np.sqrt(train_error_lasso[10:50:4]),label='Lasso train error')
-plt.semilogx(lambdas[10:50:4], np.sqrt(test_error_lasso[10:50:4]),label='Lasso test error')
-plt.semilogx(lambdas[10:50:4], np.sqrt(Error_test_lin[0:10].mean(1)),label='Linear train error')
-plt.semilogx(lambdas[10:50:4], np.sqrt(Error_test_lin[0:10].mean(1)),label='Linear test error')
-plt.semilogx(lambdas[10:50:4], np.sqrt(train_error_elastic[10:50:4]),label='ElasticNet train error')
-plt.semilogx(lambdas[10:50:4], np.sqrt(test_error_elastic[10:50:4]),label='ElasticNet test error')
-plt.semilogx(lambdas[10:50:4], np.sqrt(Error_train_fs[:,0]),label='Linear feature selection train error')
-plt.semilogx(lambdas[10:50:4], np.sqrt(Error_test_fs[:,0]),label='Linear feature selection test error')
-plt.semilogx(lambdas[min_error_index], np.sqrt(min_error), 'o')
-plt.text(1, 10, "Minimum test error: " + str(np.round(np.sqrt(min_error),2)) + ' at 1e' + str(np.round(np.log10(lambdas[min_error_index]),2)))
-plt.xlabel('Regularization strength, $\log_{10}(\lambda)$')
+plt.figure(figsize=(8,8), dpi=300)
+
+plt.semilogx(lambdas[10:50:4], rr_error,label='Lasso error(NO fs)')
+plt.semilogx(lambdas[10:50:4], np.sqrt(Error_test_fs_lasso),label='Lasso error(with fs)')
+plt.semilogx(lambdas[10:50:4], bl_error,label='Baseline error (nested-CV, 10K)')
+plt.semilogx(lambdas[10:50:4], nn_error,label='ANN error(NO fs)')
+plt.semilogx(lambdas[10:50:4], nn_error_val_fs,label='ANN error(with fs)')
+
+
+#plt.semilogx(lambdas[10:50:4], np.sqrt(train_error_elastic[10:50:4]),label='ElasticNet train error')
+#plt.semilogx(lambdas[10:50:4], np.sqrt(test_error_elastic[10:50:4]),label='ElasticNet test error')
+#plt.semilogx(lambdas[10:50:4], np.sqrt(Error_train_fs[:,0]),label='Linear feature selection train error')
+#plt.semilogx(lambdas[10:50:4], np.sqrt(Error_test_fs[:,0]),label='Linear feature selection test error')
+#plt.semilogx(lambdas[min_error_index], np.sqrt(min_error), 'o')
+#plt.text(1, 10, "Minimum test error: " + str(np.round(np.sqrt(min_error),2)) + ' at 1e' + str(np.round(np.log10(lambdas[min_error_index]),2)))
+plt.xlabel('Regularization strength, $\log_{10}(\lambda)$ / Iteration for fs')
 plt.ylabel('RMSE')
-plt.title('Regression error before/after feature selection')
-plt.legend(loc=0)
+plt.title('Generalization error before/after feature selection(fs)')
+plt.legend(loc=0,shadow=True, fontsize='small')
 #plt.legend(['Training error','Test error','Test minimum'],loc='upper right')
-plt.ylim([5, 15])
+plt.ylim([5, 17])
 plt.grid()
 plt.show()  
 
-'''
+
 #FITTING THE BEST SET OF FEATURES TO THE MODELS TO BE COMPARED
 
 
-
+'''
 
 
 
