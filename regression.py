@@ -147,8 +147,8 @@ https://scikit-learn.org/stable/auto_examples/linear_model/plot_polynomial_inter
 
 #%% 1. K1/K2 and CV1/CV2 redundant? 
 from sklearn.linear_model import Lasso
-K1 = 10 # 5 # 10
-K2 = 10 # 5 # 10
+K1 = 2 # 10
+K2 = 3 # 10
 
 # Init hyperparameters
 hidden_units = np.arange(start = 1, stop = 10, step = 2)
@@ -179,7 +179,7 @@ CV2 = model_selection.KFold(n_splits=K2, shuffle=True, random_state=43) # redund
 N, M = X_r.shape
 
 # Parameters for neural network 
-n_replicates = 2       # number of networks trained in each k-fold
+n_replicates = 1       # number of networks trained in each k-fold
 max_iter = 5000
 
 

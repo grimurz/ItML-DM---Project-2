@@ -299,12 +299,12 @@ Error_train = np.empty((K1,1))
 Error_test = np.empty((K1,1))
 Error_train_fs = np.empty((K1,1))
 Error_test_fs = np.empty((K1,1))
-Error_train_fs_ridge = np.empty((K1,1))
-Error_test_fs_ridge = np.empty((K1,1))
+Error_train_fs_ridge = np.empty(K1)
+Error_test_fs_ridge = np.empty(K1)
 Error_train_nofeatures = np.empty((K1,1))
 Error_test_nofeatures = np.empty((K1,1))
-nn_error_val_fs = np.zeros([K2,len(hidden_units)])
-rr_error_val_fs = np.zeros([K2,len(lambdas)])
+nn_error_val_fs = np.zeros(K1)
+rr_error_val_fs = np.zeros(K1)
 
 # Init optimal lambda & optimal h
 h_opt_val_fs = np.zeros(K2)
@@ -365,13 +365,13 @@ for train_index, test_index in CV1.split(Xr):
         Error_test_fs_ridge[k] = np.square(yr_test-ridge_reg.predict(Xr_test[:,selected_features])).sum()/yr_test.shape[0]
     
         model = lambda: torch.nn.Sequential(
-                                torch.nn.Linear(M, 1), #M features to n_hidden_units
+                                torch.nn.Linear(M, 3), #M features to n_hidden_units
                                 torch.nn.Tanh(), # 1st transfer function,
 
-                                torch.nn.Linear(1, 1),   # torch.nn.ReLU()   torch.nn.Tanh()
+                                torch.nn.Linear(3, 3),   # torch.nn.ReLU()   torch.nn.Tanh()
                                 torch.nn.ReLU(),
             
-                                torch.nn.Linear(1, 1), # n_hidden_units to 1 output neuron
+                                torch.nn.Linear(3, 1), # n_hidden_units to 1 output neuron
                                 # no final tranfer function, i.e. "linear output"
                                 )
         loss_fn = torch.nn.MSELoss()
@@ -388,16 +388,16 @@ for train_index, test_index in CV1.split(Xr):
         y_nn_val_pred_fs = net(X_nn_val_fs[:,selected_features]).detach().numpy()
 
         # Calculate error (RMSE)
-        nn_error_val_fs[k] = np.sqrt(np.mean((y_nn_val_pred_fs-yr_test)**2))
+        nn_error_val_fs[k] = np.sqrt(np.mean((y_nn_val_pred_fs.squeeze()-yr_test)**2))
             
             
             
 
-        mean_nn_error_val_fs = np.mean(nn_error_val_fs,axis=0)
-        min_error_nn_val_fs[k] = np.min(mean_nn_error_val_fs)
+        # mean_nn_error_val_fs = np.mean(nn_error_val_fs)
+        # min_error_nn_val_fs[k] = np.min(mean_nn_error_val_fs)
 
-        min_error_nn_index_fs = np.where(mean_nn_error_val_fs == min_error_nn_val_fs[k])[0][0]
-        h_opt_val_fs[k] = hidden_units_fs[min_error_nn_index_fs]
+        # min_error_nn_index_fs = np.where(mean_nn_error_val_fs == min_error_nn_val_fs[k])[0][0]
+        # h_opt_val_fs[k] = hidden_units_fs[min_error_nn_index_fs]
         
         
         
@@ -413,16 +413,18 @@ for train_index, test_index in CV1.split(Xr):
         clim(-1.5,0)
         xlabel('Iteration')
         
-     # Collect mean of min errors
-    nn_error_val_tot_fs[k] = np.mean(min_error_nn_val_fs)
-    rr_error_val_tot_fs[k] = np.mean(min_error_rr_val_fs)
+    #  # Collect mean of min errors
+    # nn_error_val_tot_fs[k] = np.mean(min_error_nn_val_fs)
+    # rr_error_val_tot_fs[k] = np.mean(min_error_rr_val_fs)
 
     print('Cross validation fold {0}/{1}'.format(k+1,K1))
     #print('Train indices: {0}'.format(train_index))
     #print('Test indices: {0}'.format(test_index))
     print('Features no: {0}\n'.format(selected_features.size))
 
-#-----------------------------------------------------------------------    
+    #-----------------------------------------------------------------------    
+    
+    
     P, L = Xr.shape
     # Init RMSE
     nn_error_val = np.zeros([K2,len(hidden_units)])
@@ -576,35 +578,46 @@ for train_index, test_index in CV1.split(Xr):
     bl_error[k] = np.sqrt(np.mean((y_bl_pred-yr_test)**2))  # root mean square error
     
 
+
+    ##### Statistic evaluation #####
+    nn_rr.append( np.mean( np.abs( y_nn_test_pred-yr_test ) ** loss - np.abs( y_test_pred-yr_test) ** loss ) )
+    nn_bl.append( np.mean( np.abs( y_nn_test_pred-yr_test ) ** loss - np.abs( y_bl_pred-yr_test) ** loss ) )
+    rr_bl.append( np.mean( np.abs( y_test_pred-yr_test ) ** loss - np.abs( y_bl_pred-yr_test) ** loss ) )
+
+
     k+=1
     
     
     
-#Error calculation after the feature selection
-print('\nFinal validation error after feature selection:')
-print('nn val:', np.round(np.mean(nn_error_val_tot_fs),4))
-print('rr val:', np.round(np.mean(rr_error_val_tot_fs),4))
+# #Error calculation after the feature selection
+# print('\nFinal validation error after feature selection:')
+# print('nn val:', np.round(np.mean(nn_error_val_tot_fs),4))
+# print('rr val:', np.round(np.mean(rr_error_val_tot_fs),4))
     
 # Take mean from all three methods and compare (NO PEEKING)
-print('\n')
+print('\nfs train/test')
 print('estimated nn error:', np.round(nn_error_val_fs,2))
 print('estimated rr error:', np.round(np.sqrt(Error_test_fs_ridge),2))
 print('estimated bl error:', np.round(bl_error,2))
-print('optimal hidden units:', h_opt_fs)
+# print('optimal hidden units:', h_opt_fs)
 #print('optimal lambdas:', np.round(lambda_opt,2))
 
-print('\nfinal means:\nNN:', np.round(np.mean(nn_error_val_fs),2), '\nRR:', np.round(np.sqrt(np.mean(Error_test_fs_ridge)),2), '\nBL:', np.round(np.mean(bl_error),2))
+print('\nfinal fs means:\nNN:', np.round(np.mean(nn_error_val_fs),2), '\nRR:', np.round(np.sqrt(np.mean(Error_test_fs_ridge)),2), '\nBL:', np.round(np.mean(bl_error),2))
+
+
+
+
+
 
 
 #Error calculation for the nested CV
 
-print('\nFinal validation error:')
+print('\n\nFinal validation error:')
 print('nn val:', np.round(np.mean(nn_error_val_tot),4))
 print('rr val:', np.round(np.mean(rr_error_val_tot),4))
     
 # Take mean from all three methods and compare (NO PEEKING)
-print('\n')
-print('estimated nn error:', np.round(nn_error,2))
+print('\nestimated nn error:', np.round(nn_error,2))
 print('estimated rr error:', np.round(rr_error,2))
 print('estimated bl error:', np.round(bl_error,2))
 print('optimal hidden units:', h_opt)
@@ -616,7 +629,17 @@ print('\nfinal means:\nNN:', np.round(np.mean(nn_error),2), '\nRR:', np.round(np
 
 
 
+alpha = 0.05
+rho = 1/K1
 
+# p-values for the null hypothesis that the two models have the same performance
+nn_rr_p, nn_rr_CI = correlated_ttest(nn_rr, rho, alpha=alpha) # NN vs RR
+nn_bl_p, nn_bl_CI = correlated_ttest(nn_bl, rho, alpha=alpha) # NN vs BL
+rr_bl_p, rr_bl_CI = correlated_ttest(rr_bl, rho, alpha=alpha) # RR vs BL
+
+print('\nNN vs RR:', np.round(nn_rr_p,3), np.round(nn_rr_CI,2))
+print('NN vs BL:', np.round(nn_bl_p,3), np.round(nn_bl_CI,2))
+print('RR vs BL:', np.round(rr_bl_p,3), np.round(rr_bl_CI,2))
 
 
 
