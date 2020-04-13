@@ -855,17 +855,17 @@ print('Test Error Accuracy({0}Kforld): {1}\n'.format(K,Error_test_SRF.T.mean()))
 #mean_test = Error_test_GRID_log.mean(1)
 C=[1,2,3,4,5,6,7,8,9,10]
 import matplotlib.pyplot as plt
-plt.figure(figsize=(8,6))
+plt.figure(figsize=(8,6), dpi=300)
 plt.plot(C, Error_train_base*100,label='Baseline train error')
 plt.plot(C, Error_test_base*100,label='Baseline test error')
-plt.plot(C, Error_train_GRID_log*100,label='Tuned logistic train error')
-plt.plot(C, Error_test_GRID_log*100,label='Tuned logistic test error')
+plt.plot(C, Error_train_GRID_log*100,label='Regularized logistic train error')
+plt.plot(C, Error_test_GRID_log*100,label='Regularized logistic test error')
 plt.plot(C, Error_train_SRF.mean(1)*100,label='Simple Random forests train error')
 plt.plot(C, Error_test_SRF.mean(1)*100,label='Simple Random forests test error')
 xlabel('Test set')
 ylabel('Error (%), CV K={0}'.format(K))
 plt.legend(loc=0,shadow=True, fontsize='small')
-plt.title('Comparison of models')
+plt.title("Classification(simple regularized models' error) ")
 plt.grid() 
 plt.show()
 
@@ -881,8 +881,8 @@ from sklearn.linear_model import LinearRegression
 from sklearn import model_selection
 import math
 # K-fold crossvalidation
-K1 = 2 # 10
-K2 = 3 # 10
+K1 = 10 # 10
+K2 = 10 # 10
 CV1 = model_selection.KFold(n_splits=K1,shuffle=True, random_state = 42)
 CV2= model_selection.KFold(n_splits=K2,shuffle=True, random_state = 43)
 lambdas = np.logspace(-3, 4, 50)
@@ -1017,7 +1017,7 @@ for train_index, test_index in CV1.split(Xc):
     print('mean rf val error', np.round(np.mean(min_error_rf_val),4))
     print('mean lambda', np.round(lambda_opt[k],4))
     leaf_optimal_samples = math.ceil(leaf_opt[k]+1)
-    leaf_optimal_split = math.ceil(leaf_opt[k]/2+1)
+    leaf_optimal_split = math.ceil(leaf_opt[k]/3+1)
   
     #Random forests testing
     if leaf_optimal_split==1:
@@ -1068,8 +1068,8 @@ for train_index, test_index in CV1.split(Xc):
     # lin_reg = LinearRegression(n_jobs=-1)
     # lin_reg.fit(Xc_train_KFold_outer, yc_train_KFold_outer)
     # y_bl_pred = lin_reg.predict(Xc_test_KFold_outer)
-    # misclass_rate_test_intercept=sum(y_bl_pred != yc_test_KFold_outer) / float(len(y_bl_pred))
-    # intercept_val_error[k] = misclass_rate_test_intercept
+    misclass_rate_test_intercept=sum(log_bl_y_pred != yc_test_KFold_outer) / float(len(log_bl_y_pred))
+    intercept_val_error[k] = misclass_rate_test_intercept
     
     
     
@@ -1101,7 +1101,13 @@ print('optimal lambdas:', np.round(lambda_opt,3))
 
 print('\n')
 
+
+
+
+
+
 '''
+
 C=[0.00000001,0.0000001,0.000001,0.00001,0.0001,0.001,0.01,0.1,1,10]
 import matplotlib.pyplot as plt
 plt.figure(figsize=(8,6))
@@ -1150,13 +1156,19 @@ title('Classification pair-wise model comparison, Logistic Regression')
 
 plt.show()
 
-
-    '''
+'''
+    
 
 
 #%%---------------------------------------------------------------------------------
 
 #TAKE THE BEST MODELS FROM ABOVE AND FIND THE BEST COMBINATIONS OF FEATURES BELOW
+
+from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
+from sklearn.ensemble import RandomForestClassifier 
+from sklearn.linear_model import LogisticRegression
+from sklearn import model_selection
+
 
 K = 10
 CV = model_selection.KFold(n_splits=K,shuffle=True, random_state = 42)
@@ -1238,7 +1250,7 @@ for train_index, test_index in CV.split(Xc):
         Error_test_fsLDA[k], Error_train_fsLDA[k] = misclass_rate_test_fsLDA, misclass_rate_train_fsLDA
         
         
-        figure(k)
+        figure(k,dpi=300)
         subplot(1,2,1)
         plot(range(1,len(loss_record)), loss_record[1:])
         title('Classification model number: {0}'.format(k))
@@ -1257,7 +1269,7 @@ for train_index, test_index in CV.split(Xc):
     print('Features no: {0}\n'.format(selected_features.size))
 
     k+=1
-
+'''
 # Display results
 print('\n')
 print('Baseline regression without feature selection:\n')
@@ -1269,21 +1281,22 @@ print('Logistic Regression without feature selection:\n')
 print('- Training error: {0}'.format(Error_train_log.mean()))
 print('- Test error:     {0}'.format(Error_test_log.mean()))
 
-
+'''
 print('Logistic Regression with feature selection:\n')
 print('- Training error: {0}'.format(Error_train_logFS.mean()))
 print('- Test error:     {0}'.format(Error_test_logFS.mean()))
-
+'''
 
 print('Random Forests without feature selection:\n')
 print('- Training error: {0}'.format(Error_train_RF.mean()))
 print('- Test error:     {0}'.format(Error_test_RF.mean()))
-
+'''
 print('Random Forests with feature selection:\n')
 print('- Training error: {0}'.format(Error_train_rf.mean()))
 print('- Test error:     {0}'.format(Error_test_rf.mean()))
 
-figure(k)
+
+figure(k,dpi=300)
 subplot(1,3,2)
 bmplot(binary_attribute_names, range(1,Features.shape[1]+1), -Features)
 clim(-1.5,0)
@@ -1294,7 +1307,7 @@ show()
 
 
 
-
+'''
 C=[0.00000001,0.0000001,0.000001,0.00001,0.0001,0.001,0.01,0.1,1,10]
 import matplotlib.pyplot as plt
 plt.figure(figsize=(8,6))
@@ -1347,7 +1360,34 @@ plt.show()
 
 
 
+'''
 
+
+
+import matplotlib.pyplot as plt
+plt.figure(figsize=(8,8), dpi=300)
+
+plt.semilogx(lambdas[10:50:4], log_val_error*100,label='Logistic Regression error(NO fs)')
+plt.semilogx(lambdas[10:50:4], Error_test_logFS.mean(1)*100,label='Logistic Regression  error(with fs)')
+plt.semilogx(lambdas[10:50:4], intercept_val_error*100,label='Baseline error (nested-CV, 10K)')
+plt.semilogx(lambdas[10:50:4], rf_val_error*100,label='Random Forests error(NO fs)')
+plt.semilogx(lambdas[10:50:4], Error_test_rf.mean(1)*100,label='Random Forests error(with fs)')
+
+
+#plt.semilogx(lambdas[10:50:4], np.sqrt(train_error_elastic[10:50:4]),label='ElasticNet train error')
+#plt.semilogx(lambdas[10:50:4], np.sqrt(test_error_elastic[10:50:4]),label='ElasticNet test error')
+#plt.semilogx(lambdas[10:50:4], np.sqrt(Error_train_fs[:,0]),label='Linear feature selection train error')
+#plt.semilogx(lambdas[10:50:4], np.sqrt(Error_test_fs[:,0]),label='Linear feature selection test error')
+#plt.semilogx(lambdas[min_error_index], np.sqrt(min_error), 'o')
+#plt.text(1, 10, "Minimum test error: " + str(np.round(np.sqrt(min_error),2)) + ' at 1e' + str(np.round(np.log10(lambdas[min_error_index]),2)))
+plt.xlabel('Regularization strength, $\log_{10}(\lambda)$ / Iteration for fs')
+plt.ylabel('Error (%)')
+plt.title('Generalization error before/after feature selection(fs)')
+plt.legend(loc=0,shadow=True, fontsize='small')
+#plt.legend(['Training error','Test error','Test minimum'],loc='upper right')
+plt.ylim([15, 45])
+plt.grid()
+plt.show()  
 
 
 
