@@ -875,7 +875,7 @@ from sklearn import model_selection
 import math
 # K-fold crossvalidation
 K1 = 2 # 10
-K2 = 5 # 10
+K2 = 3 # 10
 CV1 = model_selection.KFold(n_splits=K1,shuffle=True, random_state = 42)
 CV2= model_selection.KFold(n_splits=K2,shuffle=True, random_state = 43)
 lambdas = np.logspace(-3, 4, 50)
@@ -885,6 +885,13 @@ tc = np.arange(10,510,10)
 tree_opt = np.zeros(K1)
 lambda_opt = np.zeros(K1)
 leaf_opt=np.zeros(K1)
+
+# Init statistic evaluation
+rf_lr = []
+rf_bl = []
+lr_bl = []
+
+
 #Outer Errors
 log_val_error = np.empty(K1)
 intercept_val_error = np.empty(K1)
@@ -1048,11 +1055,18 @@ for train_index, test_index in CV1.split(Xc):
 
 
     # Baseline testing
-    lin_reg = LinearRegression(n_jobs=-1)
-    lin_reg.fit(Xc_train_KFold_outer, yc_train_KFold_outer)
-    y_bl_pred = lin_reg.predict(Xc_test_KFold_outer)
-    misclass_rate_test_intercept=sum(y_bl_pred != yc_test_KFold_outer) / float(len(y_bl_pred))
-    intercept_val_error[k] = misclass_rate_test_intercept
+    clf = LogisticRegression(random_state=42).fit(Xc_train_LDA_outer, yc_train_KFold_outer)
+    log_bl_y_pred = clf.predict(Xc_test_LDA_outer)
+    
+    # lin_reg = LinearRegression(n_jobs=-1)
+    # lin_reg.fit(Xc_train_KFold_outer, yc_train_KFold_outer)
+    # y_bl_pred = lin_reg.predict(Xc_test_KFold_outer)
+    # misclass_rate_test_intercept=sum(y_bl_pred != yc_test_KFold_outer) / float(len(y_bl_pred))
+    # intercept_val_error[k] = misclass_rate_test_intercept
+    
+    
+    
+    
     
     
     k+=1
@@ -1070,6 +1084,15 @@ print('estimated bl error:', np.round(intercept_val_error,3))
 print('optimal rf estimator units:', tree_opt)
 print('optimal rf leaf units:', leaf_opt)
 print('optimal lambdas:', np.round(lambda_opt,3))
+
+
+
+# McNemars test on hold until TAs answer
+# https://piazza.com/class/k66atrohlm63kt?cid=262
+
+
+
+print('\n')
 
 '''
 C=[0.00000001,0.0000001,0.000001,0.00001,0.0001,0.001,0.01,0.1,1,10]
