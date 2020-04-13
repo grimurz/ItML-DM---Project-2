@@ -1382,7 +1382,7 @@ plt.semilogx(lambdas[10:50:4], Error_test_rf.mean(1)*100,label='Random Forests e
 #plt.text(1, 10, "Minimum test error: " + str(np.round(np.sqrt(min_error),2)) + ' at 1e' + str(np.round(np.log10(lambdas[min_error_index]),2)))
 plt.xlabel('Regularization strength, $\log_{10}(\lambda)$ / Iteration for fs')
 plt.ylabel('Error (%)')
-plt.title('Generalization error before/after feature selection(fs)')
+plt.title('Classification generalization error before/after feature selection(fs)')
 plt.legend(loc=0,shadow=True, fontsize='small')
 #plt.legend(['Training error','Test error','Test minimum'],loc='upper right')
 plt.ylim([15, 45])
