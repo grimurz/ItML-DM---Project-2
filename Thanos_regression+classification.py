@@ -613,8 +613,11 @@ print('\nfinal fs means:\nANN:', np.round(np.mean(nn_error_val_fs),2), '\nLasso:
 
 
 #Error calculation for the nested CV
-
+print()
+print('----------------------------------------')
+print()
 print('\n\nFinal nested validation error:')
+print()
 print('ANN val:', np.round(np.mean(nn_error_val_tot),4))
 print('Lasso val:', np.round(np.mean(rr_error_val_tot),4))
     
