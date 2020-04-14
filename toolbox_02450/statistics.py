@@ -61,8 +61,8 @@ def mcnemar(y_true, yhatA, yhatB, alpha=0.05):
 
     Q = n**2 * (n+1) * (Etheta+1) * (1-Etheta) / ( (n*(n12+n21) - (n12-n21)**2) )
 
-    p = (Etheta + 1) * (Q-1)
-    q = (1-Etheta) * (Q-1)
+    p = (Etheta + 1)*0.5 * (Q-1)
+    q = (1-Etheta)*0.5 * (Q-1)
 
     CI = tuple(lm * 2 - 1 for lm in scipy.stats.beta.interval(1-alpha, a=p, b=q) )
 

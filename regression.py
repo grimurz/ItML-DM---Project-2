@@ -147,8 +147,8 @@ https://scikit-learn.org/stable/auto_examples/linear_model/plot_polynomial_inter
 
 #%% 1. K1/K2 and CV1/CV2 redundant? 
 from sklearn.linear_model import Lasso
-K1 = 2 # 10
-K2 = 3 # 10
+K1 =  2
+K2 =  3
 
 # Init hyperparameters
 hidden_units = np.arange(start = 1, stop = 10, step = 2)
@@ -255,10 +255,9 @@ for par_index, test_index in CV1.split(X_r):
             # Calculate error (RMSE)
             nn_error_val[j,i] = np.sqrt(np.mean((y_nn_val_pred-y_val)**2))
 
-        mean_nn_error_val = np.mean(nn_error_val,axis=0)
-        min_error_nn_val[j] = np.min(mean_nn_error_val)
-
-        min_error_nn_index = np.where(mean_nn_error_val == min_error_nn_val[j])[0][0]
+        # mean_nn_error_val = np.mean(nn_error_val,axis=0) # WRONG
+        min_error_nn_val[j] = np.min(nn_error_val[j])
+        min_error_nn_index = np.where(nn_error_val[j] == min_error_nn_val[j])[0][0]
         h_opt_val[j] = hidden_units[min_error_nn_index]
         
         
@@ -280,10 +279,9 @@ for par_index, test_index in CV1.split(X_r):
             # Calculate error (RMSE)
             rr_error_val[j,i] = np.sqrt(np.mean((y_val_pred-y_val)**2))
 
-        mean_rr_error_val = np.mean(rr_error_val,axis=0)
-        min_error_rr_val[j] = np.min(mean_rr_error_val)
-
-        min_error_rr_index = np.where(mean_rr_error_val == min_error_rr_val[j])[0][0]
+        # mean_rr_error_val = np.mean(rr_error_val,axis=0) # WRONG
+        min_error_rr_val[j] = np.min(rr_error_val[j]) # np.min(mean_rr_error_val)
+        min_error_rr_index = np.where(rr_error_val[j] == min_error_rr_val[j])[0][0]
         lambda_opt_val[j] = lambdas[min_error_rr_index]
     
     
@@ -320,7 +318,7 @@ for par_index, test_index in CV1.split(X_r):
         # plt.grid()
         # plt.show()  
 
-        plt.plot(hidden_units, mean_nn_error_val)
+        plt.plot(hidden_units, nn_error_val[j])
         plt.plot(hidden_units[min_error_nn_index], min_error_nn_val[j], 'o')
         
         
