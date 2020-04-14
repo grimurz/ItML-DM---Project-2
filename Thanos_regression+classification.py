@@ -258,8 +258,8 @@ import torch
 
 
 lambdas = np.logspace(-3, 4, 50)
-K1 = 2
-K2 = 3 # 5 # 10
+K1 = 10
+K2 = 10 # 5 # 10
 
 # Init hyperparameters
 hidden_units = np.arange(start = 1, stop = 10, step = 2)
