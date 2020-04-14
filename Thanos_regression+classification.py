@@ -1000,7 +1000,7 @@ for train_index, test_index in CV1.split(Xc):
         
         j+=1
         
-    leaf_opt[k] = np.max(leaf_opt_val).astype(int)   # <- Attn: Mean or most frequent? # print('most frequent h', np.argmax(np.bincount(h_opt_val.astype(int))))
+    leaf_opt[k] = np.max(leaf_opt_val).astype(int)
     tree_opt[k] = np.max(tree_opt_val).astype(int) 
     lambda_opt[k] = np.mean(lambda_opt_val)
 
@@ -1360,14 +1360,14 @@ plt.show()
 
 
 
-import matplotlib.pyplot as plt
-plt.figure(figsize=(8,8), dpi=300)
+# import matplotlib.pyplot as plt
+# plt.figure(figsize=(8,8), dpi=300)
 
-plt.semilogx(lambdas[10:50:4], log_val_error*100,label='Logistic Regression error(NO fs)')
-plt.semilogx(lambdas[10:50:4], Error_test_logFS.mean(1)*100,label='Logistic Regression  error(with fs)')
-plt.semilogx(lambdas[10:50:4], intercept_val_error*100,label='Baseline error (nested-CV, 10K)')
-plt.semilogx(lambdas[10:50:4], rf_val_error*100,label='Random Forests error(NO fs)')
-plt.semilogx(lambdas[10:50:4], Error_test_rf.mean(1)*100,label='Random Forests error(with fs)')
+# plt.semilogx(lambdas[10:50:4], log_val_error*100,label='Logistic Regression error(NO fs)')
+# plt.semilogx(lambdas[10:50:4], Error_test_logFS.mean(1)*100,label='Logistic Regression  error(with fs)')
+# plt.semilogx(lambdas[10:50:4], intercept_val_error*100,label='Baseline error (nested-CV, 10K)')
+# plt.semilogx(lambdas[10:50:4], rf_val_error*100,label='Random Forests error(NO fs)')
+# plt.semilogx(lambdas[10:50:4], Error_test_rf.mean(1)*100,label='Random Forests error(with fs)')
 
 
 #plt.semilogx(lambdas[10:50:4], np.sqrt(train_error_elastic[10:50:4]),label='ElasticNet train error')
