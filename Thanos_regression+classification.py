@@ -485,10 +485,9 @@ for train_index, test_index in CV1.split(Xr):
             # Calculate error (RMSE)
             nn_error_val[j,i] = np.sqrt(np.mean((y_nn_val_pred-y_val)**2))
 
-        mean_nn_error_val = np.mean(nn_error_val,axis=0)
-        min_error_nn_val[j] = np.min(mean_nn_error_val)
-
-        min_error_nn_index = np.where(mean_nn_error_val == min_error_nn_val[j])[0][0]
+        # mean_nn_error_val = np.mean(nn_error_val,axis=0) # WRONG
+        min_error_nn_val[j] = np.min(nn_error_val[j]) # np.min(mean_nn_error_val)
+        min_error_nn_index = np.where(nn_error_val[j] == min_error_nn_val[j])[0][0]
         h_opt_val[j] = hidden_units[min_error_nn_index]
         
         ##### Lasso training #####
@@ -508,10 +507,9 @@ for train_index, test_index in CV1.split(Xr):
             # Calculate error (RMSE)
             rr_error_val[j,i] = np.sqrt(np.mean((y_val_pred-y_val)**2))
 
-        mean_rr_error_val = np.mean(rr_error_val,axis=0)
-        min_error_rr_val[j] = np.min(mean_rr_error_val)
-
-        min_error_rr_index = np.where(mean_rr_error_val == min_error_rr_val[j])[0][0]
+        # mean_rr_error_val = np.mean(rr_error_val,axis=0) # WRONG        
+        min_error_rr_val[j] = np.min(rr_error_val[j]) # np.min(mean_rr_error_val)
+        min_error_rr_index = np.where(rr_error_val[j] == min_error_rr_val[j])[0][0]
         lambda_opt_val[j] = lambdas[min_error_rr_index]
         
         
@@ -881,8 +879,8 @@ from sklearn.linear_model import LinearRegression
 from sklearn import model_selection
 import math
 # K-fold crossvalidation
-K1 = 10 # 10
-K2 = 10 # 10
+K1 = 2 # 10
+K2 = 3 # 10
 CV1 = model_selection.KFold(n_splits=K1,shuffle=True, random_state = 42)
 CV2= model_selection.KFold(n_splits=K2,shuffle=True, random_state = 43)
 lambdas = np.logspace(-3, 4, 50)
@@ -913,12 +911,12 @@ for train_index, test_index in CV1.split(Xc):
      
    
     # Initialize variables (train/val)
-    Error_train_log = np.empty((len(lambdas),K2))
-    Error_test_log = np.empty((len(lambdas),K2))
+    Error_train_log = np.empty((K2,len(lambdas)))
+    Error_test_log = np.empty((K2,len(lambdas)))
     Error_train_log_intercept = np.empty((len(lambdas),K2))
     Error_test_log_intercept = np.empty((len(lambdas),K2))
-    Error_train_RF = np.empty((len(tc),K2))
-    Error_test_RF = np.empty((len(tc),K2))
+    Error_train_RF = np.empty((K2,len(tc)))
+    Error_test_RF = np.empty((K2,len(tc)))
     # Init min error
     min_error_rf_val = np.zeros(K2)
     min_error_rr_val = np.zeros(K2)
@@ -955,12 +953,11 @@ for train_index, test_index in CV1.split(Xc):
             rfc_train_pred = randc_forestCV.predict(Xc_train_KFold_log)
             misclass_rate_testRF = sum(rfc_test_pred != yc_test_KFold_log) / float(len(rfc_test_pred))
             misclass_rate_trainRF = sum(rfc_train_pred != yc_train_KFold_log) / float(len(rfc_train_pred))
-            Error_test_RF[i,j], Error_train_RF[i,j] = misclass_rate_testRF, misclass_rate_trainRF
+            Error_test_RF[j,i], Error_train_RF[j,i] = misclass_rate_testRF, misclass_rate_trainRF
             
-        mean_rf_error_val = np.mean(Error_test_RF,axis=1)   # <- Attn: axis=1 ?
-        min_error_rf_val[j] = np.min(mean_rf_error_val)
-
-        min_error_rf_index = np.where(mean_rf_error_val == min_error_rf_val[j])[0][0]
+        # mean_rf_error_val = np.mean(Error_test_RF,axis=1)   # WRONG
+        min_error_rf_val[j] = np.min(Error_test_RF[j])
+        min_error_rf_index = np.where(Error_test_RF[j] == min_error_rf_val[j])[0][0]
         tree_opt_val[j] = tc[min_error_rf_index]
         leaf_opt_val[j] = leaf_values[min_error_rf_index]
         
@@ -986,13 +983,12 @@ for train_index, test_index in CV1.split(Xc):
                 exit()
             
             misclass_rate_train = sum(log_train_pred != yc_train_KFold_log) / float(len(log_train_pred))
-            Error_test_log[a,j], Error_train_log[a,j] = misclass_rate_test, misclass_rate_train
+            Error_test_log[j,a], Error_train_log[j,a] = misclass_rate_test, misclass_rate_train
             
             
-        mean_rr_error_val = np.mean(Error_test_log,axis=1)   # <- Attn: axis=1 ?
-        min_error_rr_val[j] = np.min(mean_rr_error_val)
-
-        min_error_rr_index = np.where(mean_rr_error_val == min_error_rr_val[j])[0][0]
+        # mean_rr_error_val = np.mean(Error_test_log,axis=1)   # WRONG
+        min_error_rr_val[j] = np.min(Error_test_log[j])
+        min_error_rr_index = np.where(Error_test_log[j] == min_error_rr_val[j])[0][0]
         lambda_opt_val[j] = lambdas[min_error_rr_index]
     
         print('\nK1:',k+1,' K2:',j+1)
@@ -1004,7 +1000,7 @@ for train_index, test_index in CV1.split(Xc):
         
         j+=1
         
-    leaf_opt[k] = np.max(leaf_opt_val).astype(int)   # <- Attn: Mean or most frequent? # print('most frequent h', np.argmax(np.bincount(h_opt_val.astype(int))))
+    leaf_opt[k] = np.max(leaf_opt_val).astype(int)
     tree_opt[k] = np.max(tree_opt_val).astype(int) 
     lambda_opt[k] = np.mean(lambda_opt_val)
 
@@ -1364,14 +1360,14 @@ plt.show()
 
 
 
-import matplotlib.pyplot as plt
-plt.figure(figsize=(8,8), dpi=300)
+# import matplotlib.pyplot as plt
+# plt.figure(figsize=(8,8), dpi=300)
 
-plt.semilogx(lambdas[10:50:4], log_val_error*100,label='Logistic Regression error(NO fs)')
-plt.semilogx(lambdas[10:50:4], Error_test_logFS.mean(1)*100,label='Logistic Regression  error(with fs)')
-plt.semilogx(lambdas[10:50:4], intercept_val_error*100,label='Baseline error (nested-CV, 10K)')
-plt.semilogx(lambdas[10:50:4], rf_val_error*100,label='Random Forests error(NO fs)')
-plt.semilogx(lambdas[10:50:4], Error_test_rf.mean(1)*100,label='Random Forests error(with fs)')
+# plt.semilogx(lambdas[10:50:4], log_val_error*100,label='Logistic Regression error(NO fs)')
+# plt.semilogx(lambdas[10:50:4], Error_test_logFS.mean(1)*100,label='Logistic Regression  error(with fs)')
+# plt.semilogx(lambdas[10:50:4], intercept_val_error*100,label='Baseline error (nested-CV, 10K)')
+# plt.semilogx(lambdas[10:50:4], rf_val_error*100,label='Random Forests error(NO fs)')
+# plt.semilogx(lambdas[10:50:4], Error_test_rf.mean(1)*100,label='Random Forests error(with fs)')
 
 
 #plt.semilogx(lambdas[10:50:4], np.sqrt(train_error_elastic[10:50:4]),label='ElasticNet train error')
