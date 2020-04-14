@@ -147,8 +147,8 @@ https://scikit-learn.org/stable/auto_examples/linear_model/plot_polynomial_inter
 
 #%% 1. K1/K2 and CV1/CV2 redundant? 
 from sklearn.linear_model import Lasso
-K1 =  2
-K2 =  3
+K1 =  10
+K2 =  10
 
 # Init hyperparameters
 hidden_units = np.arange(start = 1, stop = 10, step = 2)
@@ -289,8 +289,8 @@ for par_index, test_index in CV1.split(X_r):
         print('\nK1:',k+1,' K2:',j+1)
         print('min rr RMSE error:', np.round(min_error_rr_val[j],4))
         print('min nn RMSE error:', np.round(min_error_nn_val[j],4))
-        print('opt lambda:', np.round(lambdas[min_error_rr_index],4))
-        print('opt h:', np.round(hidden_units[min_error_nn_index],4))
+        print('opt lambda:', np.round(lambdas[min_error_rr_index],4)) # <--- ATTN!
+        print('opt h:', np.round(hidden_units[min_error_nn_index],4)) # <--- ATTN!
 
 
     
