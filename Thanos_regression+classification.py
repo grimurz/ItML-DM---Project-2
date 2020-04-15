@@ -258,8 +258,8 @@ import torch
 
 
 lambdas = np.logspace(-3, 4, 50)
-K1 = 2
-K2 = 3 # 5 # 10
+K1 = 10
+K2 = 10 # 5 # 10
 
 # Init hyperparameters
 hidden_units = np.arange(start = 1, stop = 10, step = 2)
@@ -879,8 +879,8 @@ from sklearn.linear_model import LinearRegression
 from sklearn import model_selection
 import math
 # K-fold crossvalidation
-K1 = 2 # 10
-K2 = 3 # 10
+K1 = 10 # 10
+K2 = 10 # 10
 CV1 = model_selection.KFold(n_splits=K1,shuffle=True, random_state = 42)
 CV2= model_selection.KFold(n_splits=K2,shuffle=True, random_state = 43)
 lambdas = np.logspace(-3, 4, 50)
@@ -892,7 +892,7 @@ lambda_opt = np.zeros(K1)
 leaf_opt=np.zeros(K1)
 
 # Init statistic evaluation
-y_pred_tot = np.empty((0,4), int) # rf, lr, bs, true value
+y_pred_tot = np.empty((0,4), int) # rf, lr, bl, true value
 # rf_lr = []
 # rf_bl = []
 # lr_bl = []
