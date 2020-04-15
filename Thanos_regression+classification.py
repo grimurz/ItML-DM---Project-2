@@ -1097,7 +1097,7 @@ print('optimal rf leaf units:', leaf_opt)
 print('optimal lambdas:', np.round(lambda_opt,3))
 
 
-#%%
+
 # McNemars test on hold until TAs answer
 # https://piazza.com/class/k66atrohlm63kt?cid=262
 
@@ -1123,6 +1123,10 @@ print('\nRF vs LR:', np.round(rf_lr_p,3), np.round(rf_lr_CI,3))
 print('RF vs BL:', np.round(rf_bl_p,3), np.round(rf_bl_CI,3))
 print('LR vs BL:', np.round(lr_bl_p,3), np.round(lr_bl_CI,3))
 
+
+#%% 
+
+print('\nfinal means:\nRF:', np.round(np.mean(rf_val_error),3), '\nLR:', np.round(np.mean(log_val_error),3), '\nBL:', np.round(np.mean(intercept_val_error),3))
 
 
 
