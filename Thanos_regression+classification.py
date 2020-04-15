@@ -892,9 +892,10 @@ lambda_opt = np.zeros(K1)
 leaf_opt=np.zeros(K1)
 
 # Init statistic evaluation
-rf_lr = []
-rf_bl = []
-lr_bl = []
+y_pred_tot = np.empty((0,4), int) # rf, lr, bs, true value
+# rf_lr = []
+# rf_bl = []
+# lr_bl = []
 
 
 #Outer Errors
@@ -1068,8 +1069,15 @@ for train_index, test_index in CV1.split(Xc):
     intercept_val_error[k] = misclass_rate_test_intercept
     
     
+    # Collect all predictions into one array for statistic evaluation
+    y_pred_fold = np.array([
+            y_test_pred_rf,
+            log_test_pred_outer,
+            log_bl_y_pred,
+            yc_test_KFold_outer
+        ]).transpose()
     
-    
+    y_pred_tot = np.concatenate((y_pred_tot, y_pred_fold), axis=0)
     
     
     k+=1
@@ -1089,18 +1097,36 @@ print('optimal rf leaf units:', leaf_opt)
 print('optimal lambdas:', np.round(lambda_opt,3))
 
 
-
+#%%
 # McNemars test on hold until TAs answer
 # https://piazza.com/class/k66atrohlm63kt?cid=262
 
+# This is the way
+# https://piazza.com/class/k66atrohlm63kt?cid=296
 
 
-print('\n')
+alpha = 0.05
+
+# p-values for the null hypothesis that the two models have the same performance
+# mcnemar(y_true, y_pred_A, y_pred_B, alpha=alpha)
+
+# RF vs LR
+_, rf_lr_CI, rf_lr_p = mcnemar(y_pred_tot[:,3], y_pred_tot[:,0], y_pred_tot[:,1], alpha=alpha)
+
+# RF vs BL
+_, rf_bl_CI, rf_bl_p = mcnemar(y_pred_tot[:,3], y_pred_tot[:,0], y_pred_tot[:,2], alpha=alpha)
+
+# LR vs BL
+_, lr_bl_CI, lr_bl_p = mcnemar(y_pred_tot[:,3], y_pred_tot[:,1], y_pred_tot[:,2], alpha=alpha)
+
+print('\nRF vs LR:', np.round(rf_lr_p,3), np.round(rf_lr_CI,3))
+print('RF vs BL:', np.round(rf_bl_p,3), np.round(rf_bl_CI,3))
+print('LR vs BL:', np.round(lr_bl_p,3), np.round(lr_bl_CI,3))
 
 
 
 
-
+#%%
 
 '''
 
