@@ -1042,6 +1042,8 @@ for train_index, test_index in CV1.split(Xc):
      # Baseline testing
     clf = LogisticRegression(fit_intercept=False,random_state=42).fit(Xc_train_KFold_outer, yc_train_KFold_outer)
     log_bl_y_pred = clf.predict(Xc_test_KFold_outer)
+    misclass_rate_test_intercept=sum(log_bl_y_pred != yc_test_KFold_outer) / float(len(log_bl_y_pred))
+    intercept_val_error[k] = misclass_rate_test_intercept
     
     # Applying LDA
     lda = LDA(n_components = 2)
@@ -1066,8 +1068,7 @@ for train_index, test_index in CV1.split(Xc):
     # lin_reg = LinearRegression(n_jobs=-1)
     # lin_reg.fit(Xc_train_KFold_outer, yc_train_KFold_outer)
     # y_bl_pred = lin_reg.predict(Xc_test_KFold_outer)
-    misclass_rate_test_intercept=sum(log_bl_y_pred != yc_test_KFold_outer) / float(len(log_bl_y_pred))
-    intercept_val_error[k] = misclass_rate_test_intercept
+   
     
     
     # Collect all predictions into one array for statistic evaluation
@@ -1391,14 +1392,14 @@ plt.show()
 
 
 
-# import matplotlib.pyplot as plt
-# plt.figure(figsize=(8,8), dpi=300)
+import matplotlib.pyplot as plt
+plt.figure(figsize=(8,8), dpi=300)
 
-# plt.semilogx(lambdas[10:50:4], log_val_error*100,label='Logistic Regression error(NO fs)')
-# plt.semilogx(lambdas[10:50:4], Error_test_logFS.mean(1)*100,label='Logistic Regression  error(with fs)')
-# plt.semilogx(lambdas[10:50:4], intercept_val_error*100,label='Baseline error (nested-CV, 10K)')
-# plt.semilogx(lambdas[10:50:4], rf_val_error*100,label='Random Forests error(NO fs)')
-# plt.semilogx(lambdas[10:50:4], Error_test_rf.mean(1)*100,label='Random Forests error(with fs)')
+plt.semilogx(lambdas[10:50:4], log_val_error*100,label='Logistic Regression error(NO fs)')
+plt.semilogx(lambdas[10:50:4], Error_test_logFS.mean(1)*100,label='Logistic Regression  error(with fs)')
+plt.semilogx(lambdas[10:50:4], intercept_val_error*100,label='Baseline error (nested-CV, 10K)')
+plt.semilogx(lambdas[10:50:4], rf_val_error*100,label='Random Forests error(NO fs)')
+plt.semilogx(lambdas[10:50:4], Error_test_rf.mean(1)*100,label='Random Forests error(with fs)')
 
 
 #plt.semilogx(lambdas[10:50:4], np.sqrt(train_error_elastic[10:50:4]),label='ElasticNet train error')
