@@ -1039,7 +1039,10 @@ for train_index, test_index in CV1.split(Xc):
     # misclass_rate_test_val = sum(y_test_pred != yc_test_KFold_outer) / float(len(y_test_pred))
     # log_val_error[k] = misclass_rate_test_val
 
-
+     # Baseline testing
+    clf = LogisticRegression(fit_intercept=False,random_state=42).fit(Xc_train_KFold_outer, yc_train_KFold_outer)
+    log_bl_y_pred = clf.predict(Xc_test_KFold_outer)
+    
     # Applying LDA
     lda = LDA(n_components = 2)
     Xc_train_LDA_outer = lda.fit_transform(Xc_train_KFold_outer, yc_train_KFold_outer)
@@ -1058,9 +1061,7 @@ for train_index, test_index in CV1.split(Xc):
 
 
 
-    # Baseline testing
-    clf = LogisticRegression(random_state=42).fit(Xc_train_LDA_outer, yc_train_KFold_outer)
-    log_bl_y_pred = clf.predict(Xc_test_LDA_outer)
+   
     
     # lin_reg = LinearRegression(n_jobs=-1)
     # lin_reg.fit(Xc_train_KFold_outer, yc_train_KFold_outer)
